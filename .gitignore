@@ -1,0 +1,79 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+*.egg-info/
+dist/
+build/
+*.egg
+
+# Virtual Environments
+.env
+.venv
+env/
+venv/
+ENV/
+env.bak/
+venv.bak/
+.conda/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.project
+.pydevproject
+.settings/
+
+# OS Files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Project Specific
+downloads/
+trimmed/
+result.mp3
+result.zip
+*.mp3
+*.mp4
+*.webm
+
+# Logs
+*.log
+logs/
+pip-log.txt
+
+# Test files (if any)
+test_*.py
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Temporary files
+*.tmp
+*.temp
+.cache/
+
+# Node modules (for yt-dlp)
+node_modules/
+
+# Flask
+instance/
+.webassets-cache
+
+# Jupyter Notebooks
+.ipynb_checkpoints/
+
+# Database
+*.db
+*.sqlite
+*.sqlite3
