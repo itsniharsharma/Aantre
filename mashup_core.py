@@ -49,16 +49,13 @@ def download_videos(singer, n):
     with YoutubeDL(ydl_opts) as ydl:
         info = ydl.extract_info(query, download=False)
 
-        # Filter valid entries in one pass
         entries = [e for e in (info.get("entries") or []) if e and e.get("webpage_url")]
         
         if not entries:
             raise RuntimeError("No videos found for the artist.")
 
-        # Sample or use all entries
         selected = random.sample(entries, min(n, len(entries))) if len(entries) > n else entries
 
-        # Store artist info from first video
         global ARTIST_INFO
         ARTIST_INFO = {
             "thumbnail": selected[0].get("thumbnail", ""),
@@ -67,12 +64,10 @@ def download_videos(singer, n):
         }
         print(f"Artist info captured: {ARTIST_INFO['title']}")
 
-        # Download all selected videos
         for entry in selected:
             if url := entry.get("webpage_url"):
                 ydl.download([url])
         
-        # Store downloaded songs in MongoDB (single directory scan)
         if mongo_handler.connected and CURRENT_SESSION_ID:
             for filename in os.listdir(DOWNLOAD_DIR):
                 filepath = os.path.join(DOWNLOAD_DIR, filename)
@@ -135,7 +130,6 @@ def run_mashup(singer, n, duration, output, user_email=None):
     """Main mashup generation function with MongoDB integration"""
     global CURRENT_SESSION_ID
     
-    # Start MongoDB session
     if mongo_handler.connected and user_email:
         CURRENT_SESSION_ID = mongo_handler.start_new_session(singer, user_email)
     
@@ -143,7 +137,6 @@ def run_mashup(singer, n, duration, output, user_email=None):
     download_videos(singer, n)
     trimmed = trim_all_mid(duration)
 
-    # Store trimmed files in MongoDB with source mapping
     if mongo_handler.connected and CURRENT_SESSION_ID:
         downloads_by_base = {}
         if os.path.exists(DOWNLOAD_DIR):

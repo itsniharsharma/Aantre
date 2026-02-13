@@ -38,7 +38,6 @@ class MongoDBHandler:
                 tlsAllowInvalidCertificates=True
             )
             
-            # Test connection
             self.client.admin.command('ping')
             
             self.db = self.client['mashup']
@@ -79,7 +78,6 @@ class MongoDBHandler:
         try:
             filename = os.path.basename(filepath)
             
-            # Store file in GridFS with chunked upload for memory efficiency
             with open(filepath, 'rb') as f:
                 file_id = self.fs.put(
                     f,
@@ -89,10 +87,9 @@ class MongoDBHandler:
                     uploaded_at=datetime.utcnow(),
                     file_type=file_type,
                     source_filename=source_filename,
-                    chunk_size=261120  # 255KB chunks for efficiency
+                    chunk_size=261120
                 )
             
-            # Update session with song ID in single operation
             if sid := (session_id or self.current_session_id):
                 self.songs_collection.update_one(
                     {"_id": sid},
@@ -116,22 +113,19 @@ class MongoDBHandler:
             if not sid:
                 return False
             
-            # Get session document
             session = self.songs_collection.find_one({"_id": sid})
             if not session:
                 print(f"⚠️ Session not found: {sid}")
                 return False
             
-            # Delete all songs from GridFS
             deleted_count = 0
             for song_id in session.get("song_ids", []):
                 try:
                     self.fs.delete(song_id)
                     deleted_count += 1
                 except:
-                    pass  # Continue deleting others even if one fails
+                    pass
             
-            # Update session status in single operation
             self.songs_collection.update_one(
                 {"_id": sid},
                 {"$set": {
@@ -165,5 +159,4 @@ class MongoDBHandler:
             print(f"⚠️ Failed to get session stats: {e}")
             return None
 
-# Global instance
 mongo_handler = MongoDBHandler()

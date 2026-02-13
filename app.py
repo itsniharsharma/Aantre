@@ -12,10 +12,6 @@ from mongodb_helper import mongo_handler
 load_dotenv()
 app = Flask(__name__)
 
-# -----------------------
-# PROFESSIONAL FRONTEND
-# -----------------------
-
 HOME_HTML = """
 <!DOCTYPE html>
 <html>
@@ -192,19 +188,11 @@ a { color: inherit; text-decoration: none; }
     display: flex;
     align-items: center;
     gap: 14px;
-    min-width: 240px;
-    padding: 14px 16px;
+    min-width: 220px;
+    padding: 16px 18px;
     border-radius: 16px;
     border: 1px solid #2c2c2c;
     background: var(--black-3);
-}
-
-.singer-card img {
-    width: 64px;
-    height: 64px;
-    border-radius: 50%;
-    object-fit: cover;
-    border: 2px solid var(--violet);
 }
 
 .singer-card h3 {
@@ -374,7 +362,6 @@ input {
     .section { padding: 28px 6vw 8px; }
     .carousel-wrap { border-radius: 16px; }
     .singer-card { min-width: 200px; padding: 12px 14px; }
-    .singer-card img { width: 54px; height: 54px; }
     .form-wrap { padding: 22px; }
     .btn { width: 100%; padding: 14px 18px; }
     .badge { font-size: 12px; padding: 8px 12px; }
@@ -482,392 +469,336 @@ window.addEventListener("load", syncLoaderState);
         <div class="carousel-wrap" aria-label="Bollywood singers carousel">
             <div class="carousel-track">
                 <div class="singer-card">
-                    <img src="https://api.dicebear.com/7.x/avataaars/png?seed=Arijit%20Singh" alt="Arijit Singh">
                     <div>
                         <h3>Arijit Singh</h3>
                         <span>Romantic ballads</span>
                     </div>
                 </div>
                 <div class="singer-card">
-                    <img src="https://api.dicebear.com/7.x/avataaars/png?seed=Shreya%20Ghoshal" alt="Shreya Ghoshal">
                     <div>
                         <h3>Shreya Ghoshal</h3>
                         <span>Classical fusion</span>
                     </div>
                 </div>
                 <div class="singer-card">
-                    <img src="https://api.dicebear.com/7.x/avataaars/png?seed=Sonu%20Nigam" alt="Sonu Nigam">
                     <div>
                         <h3>Sonu Nigam</h3>
                         <span>Evergreen hits</span>
                     </div>
                 </div>
                 <div class="singer-card">
-                    <img src="https://api.dicebear.com/7.x/avataaars/png?seed=Sunidhi%20Chauhan" alt="Sunidhi Chauhan">
                     <div>
                         <h3>Sunidhi Chauhan</h3>
                         <span>Power vocals</span>
                     </div>
                 </div>
                 <div class="singer-card">
-                    <img src="https://api.dicebear.com/7.x/avataaars/png?seed=Atif%20Aslam" alt="Atif Aslam">
                     <div>
                         <h3>Atif Aslam</h3>
                         <span>Signature timbre</span>
                     </div>
                 </div>
                 <div class="singer-card">
-                    <img src="https://api.dicebear.com/7.x/avataaars/png?seed=Neha%20Kakkar" alt="Neha Kakkar">
                     <div>
                         <h3>Neha Kakkar</h3>
                         <span>Dance anthems</span>
                     </div>
                 </div>
                 <div class="singer-card">
-                    <img src="https://api.dicebear.com/7.x/avataaars/png?seed=Armaan%20Malik" alt="Armaan Malik">
                     <div>
                         <h3>Armaan Malik</h3>
                         <span>Soft pop tone</span>
                     </div>
                 </div>
                 <div class="singer-card">
-                    <img src="https://api.dicebear.com/7.x/avataaars/png?seed=Kishore%20Kumar" alt="Kishore Kumar">
                     <div>
                         <h3>Kishore Kumar</h3>
                         <span>Legendary classics</span>
                     </div>
                 </div>
                 <div class="singer-card">
-                    <img src="https://api.dicebear.com/7.x/avataaars/png?seed=Lata%20Mangeshkar" alt="Lata Mangeshkar">
                     <div>
                         <h3>Lata Mangeshkar</h3>
                         <span>Golden era icon</span>
                     </div>
                 </div>
                 <div class="singer-card">
-                    <img src="https://api.dicebear.com/7.x/avataaars/png?seed=Asha%20Bhosle" alt="Asha Bhosle">
                     <div>
                         <h3>Asha Bhosle</h3>
                         <span>Timeless versatility</span>
                     </div>
                 </div>
                 <div class="singer-card">
-                    <img src="https://api.dicebear.com/7.x/avataaars/png?seed=Mohammed%20Rafi" alt="Mohammed Rafi">
                     <div>
                         <h3>Mohammed Rafi</h3>
                         <span>Classic melodies</span>
                     </div>
                 </div>
                 <div class="singer-card">
-                    <img src="https://api.dicebear.com/7.x/avataaars/png?seed=Mukesh" alt="Mukesh">
                     <div>
                         <h3>Mukesh</h3>
                         <span>Golden voice</span>
                     </div>
                 </div>
                 <div class="singer-card">
-                    <img src="https://api.dicebear.com/7.x/avataaars/png?seed=Udit%20Narayan" alt="Udit Narayan">
                     <div>
                         <h3>Udit Narayan</h3>
                         <span>90s romance</span>
                     </div>
                 </div>
                 <div class="singer-card">
-                    <img src="https://api.dicebear.com/7.x/avataaars/png?seed=Kumar%20Sanu" alt="Kumar Sanu">
                     <div>
                         <h3>Kumar Sanu</h3>
                         <span>90s chart hits</span>
                     </div>
                 </div>
                 <div class="singer-card">
-                    <img src="https://api.dicebear.com/7.x/avataaars/png?seed=Alka%20Yagnik" alt="Alka Yagnik">
                     <div>
                         <h3>Alka Yagnik</h3>
                         <span>Melodic charm</span>
                     </div>
                 </div>
                 <div class="singer-card">
-                    <img src="https://api.dicebear.com/7.x/avataaars/png?seed=S.%20P.%20Balasubrahmanyam" alt="S. P. Balasubrahmanyam">
                     <div>
                         <h3>S. P. Balasubrahmanyam</h3>
                         <span>Pan-India legend</span>
                     </div>
                 </div>
                 <div class="singer-card">
-                    <img src="https://api.dicebear.com/7.x/avataaars/png?seed=Shaan" alt="Shaan">
                     <div>
                         <h3>Shaan</h3>
                         <span>Feel-good pop</span>
                     </div>
                 </div>
                 <div class="singer-card">
-                    <img src="https://api.dicebear.com/7.x/avataaars/png?seed=KK" alt="KK">
                     <div>
                         <h3>KK</h3>
                         <span>Soulful hits</span>
                     </div>
                 </div>
                 <div class="singer-card">
-                    <img src="https://api.dicebear.com/7.x/avataaars/png?seed=Mohit%20Chauhan" alt="Mohit Chauhan">
                     <div>
                         <h3>Mohit Chauhan</h3>
                         <span>Indie romance</span>
                     </div>
                 </div>
                 <div class="singer-card">
-                    <img src="https://api.dicebear.com/7.x/avataaars/png?seed=Jubin%20Nautiyal" alt="Jubin Nautiyal">
                     <div>
                         <h3>Jubin Nautiyal</h3>
                         <span>Modern ballads</span>
                     </div>
                 </div>
                 <div class="singer-card">
-                    <img src="https://api.dicebear.com/7.x/avataaars/png?seed=Badshah" alt="Badshah">
                     <div>
                         <h3>Badshah</h3>
                         <span>Hip-hop hooks</span>
                     </div>
                 </div>
                 <div class="singer-card">
-                    <img src="https://api.dicebear.com/7.x/avataaars/png?seed=Honey%20Singh" alt="Honey Singh">
                     <div>
                         <h3>Honey Singh</h3>
                         <span>Party anthems</span>
                     </div>
                 </div>
                 <div class="singer-card">
-                    <img src="https://api.dicebear.com/7.x/avataaars/png?seed=Diljit%20Dosanjh" alt="Diljit Dosanjh">
                     <div>
                         <h3>Diljit Dosanjh</h3>
                         <span>Punjabi crossover</span>
                     </div>
                 </div>
                 <div class="singer-card">
-                    <img src="https://api.dicebear.com/7.x/avataaars/png?seed=Mika%20Singh" alt="Mika Singh">
                     <div>
                         <h3>Mika Singh</h3>
                         <span>High energy hits</span>
                     </div>
                 </div>
                 <div class="singer-card">
-                    <img src="https://api.dicebear.com/7.x/avataaars/png?seed=Vishal%20Dadlani" alt="Vishal Dadlani">
                     <div>
                         <h3>Vishal Dadlani</h3>
                         <span>Rock edge</span>
                     </div>
                 </div>
                 <div class="singer-card">
-                    <img src="https://api.dicebear.com/7.x/avataaars/png?seed=Shekhar%20Ravjiani" alt="Shekhar Ravjiani">
                     <div>
                         <h3>Shekhar Ravjiani</h3>
                         <span>Smooth hooks</span>
                     </div>
                 </div>
                 <div class="singer-card">
-                    <img src="https://api.dicebear.com/7.x/avataaars/png?seed=Shankar%20Mahadevan" alt="Shankar Mahadevan">
                     <div>
                         <h3>Shankar Mahadevan</h3>
                         <span>Carnatic power</span>
                     </div>
                 </div>
                 <div class="singer-card">
-                    <img src="https://api.dicebear.com/7.x/avataaars/png?seed=Hariharan" alt="Hariharan">
                     <div>
                         <h3>Hariharan</h3>
                         <span>Ghazi gharana</span>
                     </div>
                 </div>
                 <div class="singer-card">
-                    <img src="https://api.dicebear.com/7.x/avataaars/png?seed=Sukhwinder%20Singh" alt="Sukhwinder Singh">
                     <div>
                         <h3>Sukhwinder Singh</h3>
                         <span>Stage fire</span>
                     </div>
                 </div>
                 <div class="singer-card">
-                    <img src="https://api.dicebear.com/7.x/avataaars/png?seed=Javed%20Ali" alt="Javed Ali">
                     <div>
                         <h3>Javed Ali</h3>
                         <span>Romantic tone</span>
                     </div>
                 </div>
                 <div class="singer-card">
-                    <img src="https://api.dicebear.com/7.x/avataaars/png?seed=Kailash%20Kher" alt="Kailash Kher">
                     <div>
                         <h3>Kailash Kher</h3>
                         <span>Sufi soul</span>
                     </div>
                 </div>
                 <div class="singer-card">
-                    <img src="https://api.dicebear.com/7.x/avataaars/png?seed=Rahat%20Fateh%20Ali%20Khan" alt="Rahat Fateh Ali Khan">
                     <div>
                         <h3>Rahat Fateh Ali Khan</h3>
                         <span>Qawwali depth</span>
                     </div>
                 </div>
                 <div class="singer-card">
-                    <img src="https://api.dicebear.com/7.x/avataaars/png?seed=Nusrat%20Fateh%20Ali%20Khan" alt="Nusrat Fateh Ali Khan">
                     <div>
                         <h3>Nusrat Fateh Ali Khan</h3>
                         <span>Qawwali master</span>
                     </div>
                 </div>
                 <div class="singer-card">
-                    <img src="https://api.dicebear.com/7.x/avataaars/png?seed=Benny%20Dayal" alt="Benny Dayal">
                     <div>
                         <h3>Benny Dayal</h3>
                         <span>Groove pop</span>
                     </div>
                 </div>
                 <div class="singer-card">
-                    <img src="https://api.dicebear.com/7.x/avataaars/png?seed=Neeti%20Mohan" alt="Neeti Mohan">
                     <div>
                         <h3>Neeti Mohan</h3>
                         <span>Modern shine</span>
                     </div>
                 </div>
                 <div class="singer-card">
-                    <img src="https://api.dicebear.com/7.x/avataaars/png?seed=Shilpa%20Rao" alt="Shilpa Rao">
                     <div>
                         <h3>Shilpa Rao</h3>
                         <span>Sultry tone</span>
                     </div>
                 </div>
                 <div class="singer-card">
-                    <img src="https://api.dicebear.com/7.x/avataaars/png?seed=Monali%20Thakur" alt="Monali Thakur">
                     <div>
                         <h3>Monali Thakur</h3>
                         <span>Soft pop</span>
                     </div>
                 </div>
                 <div class="singer-card">
-                    <img src="https://api.dicebear.com/7.x/avataaars/png?seed=Palak%20Muchhal" alt="Palak Muchhal">
                     <div>
                         <h3>Palak Muchhal</h3>
                         <span>Love songs</span>
                     </div>
                 </div>
                 <div class="singer-card">
-                    <img src="https://api.dicebear.com/7.x/avataaars/png?seed=Tulsi%20Kumar" alt="Tulsi Kumar">
                     <div>
                         <h3>Tulsi Kumar</h3>
                         <span>Pop romance</span>
                     </div>
                 </div>
                 <div class="singer-card">
-                    <img src="https://api.dicebear.com/7.x/avataaars/png?seed=Kanika%20Kapoor" alt="Kanika Kapoor">
                     <div>
                         <h3>Kanika Kapoor</h3>
                         <span>Dance sparkle</span>
                     </div>
                 </div>
                 <div class="singer-card">
-                    <img src="https://api.dicebear.com/7.x/avataaars/png?seed=Dhvani%20Bhanushali" alt="Dhvani Bhanushali">
                     <div>
                         <h3>Dhvani Bhanushali</h3>
                         <span>Youth pop</span>
                     </div>
                 </div>
                 <div class="singer-card">
-                    <img src="https://api.dicebear.com/7.x/avataaars/png?seed=Jonita%20Gandhi" alt="Jonita Gandhi">
                     <div>
                         <h3>Jonita Gandhi</h3>
                         <span>Fresh vocals</span>
                     </div>
                 </div>
                 <div class="singer-card">
-                    <img src="https://api.dicebear.com/7.x/avataaars/png?seed=Asees%20Kaur" alt="Asees Kaur">
                     <div>
                         <h3>Asees Kaur</h3>
                         <span>Warm tone</span>
                     </div>
                 </div>
                 <div class="singer-card">
-                    <img src="https://api.dicebear.com/7.x/avataaars/png?seed=B%20Praak" alt="B Praak">
                     <div>
                         <h3>B Praak</h3>
                         <span>Emotive power</span>
                     </div>
                 </div>
                 <div class="singer-card">
-                    <img src="https://api.dicebear.com/7.x/avataaars/png?seed=Arko" alt="Arko">
                     <div>
                         <h3>Arko</h3>
                         <span>Indie mood</span>
                     </div>
                 </div>
                 <div class="singer-card">
-                    <img src="https://api.dicebear.com/7.x/avataaars/png?seed=Ankit%20Tiwari" alt="Ankit Tiwari">
                     <div>
                         <h3>Ankit Tiwari</h3>
                         <span>Dark romance</span>
                     </div>
                 </div>
                 <div class="singer-card">
-                    <img src="https://api.dicebear.com/7.x/avataaars/png?seed=Darshan%20Raval" alt="Darshan Raval">
                     <div>
                         <h3>Darshan Raval</h3>
                         <span>Pop ballads</span>
                     </div>
                 </div>
                 <div class="singer-card">
-                    <img src="https://api.dicebear.com/7.x/avataaars/png?seed=Gajendra%20Verma" alt="Gajendra Verma">
                     <div>
                         <h3>Gajendra Verma</h3>
                         <span>Indie love</span>
                     </div>
                 </div>
                 <div class="singer-card">
-                    <img src="https://api.dicebear.com/7.x/avataaars/png?seed=Lucky%20Ali" alt="Lucky Ali">
                     <div>
                         <h3>Lucky Ali</h3>
                         <span>Acoustic soul</span>
                     </div>
                 </div>
                 <div class="singer-card">
-                    <img src="https://api.dicebear.com/7.x/avataaars/png?seed=Adnan%20Sami" alt="Adnan Sami">
                     <div>
                         <h3>Adnan Sami</h3>
                         <span>Piano melodies</span>
                     </div>
                 </div>
                 <div class="singer-card">
-                    <img src="https://api.dicebear.com/7.x/avataaars/png?seed=Abhijeet%20Bhattacharya" alt="Abhijeet Bhattacharya">
                     <div>
                         <h3>Abhijeet Bhattacharya</h3>
                         <span>Bollywood hits</span>
                     </div>
                 </div>
                 <div class="singer-card">
-                    <img src="https://api.dicebear.com/7.x/avataaars/png?seed=Kavita%20Krishnamurthy" alt="Kavita Krishnamurthy">
                     <div>
                         <h3>Kavita Krishnamurthy</h3>
                         <span>Classic elegance</span>
                     </div>
                 </div>
                 <div class="singer-card">
-                    <img src="https://api.dicebear.com/7.x/avataaars/png?seed=Sadhana%20Sargam" alt="Sadhana Sargam">
                     <div>
                         <h3>Sadhana Sargam</h3>
                         <span>Smooth melodies</span>
                     </div>
                 </div>
                 <div class="singer-card">
-                    <img src="https://api.dicebear.com/7.x/avataaars/png?seed=Mahalakshmi%20Iyer" alt="Mahalakshmi Iyer">
                     <div>
                         <h3>Mahalakshmi Iyer</h3>
                         <span>Silky vocals</span>
                     </div>
                 </div>
                 <div class="singer-card">
-                    <img src="https://api.dicebear.com/7.x/avataaars/png?seed=Roop%20Kumar%20Rathod" alt="Roop Kumar Rathod">
                     <div>
                         <h3>Roop Kumar Rathod</h3>
                         <span>Ghazal touch</span>
                     </div>
                 </div>
                 <div class="singer-card">
-                    <img src="https://api.dicebear.com/7.x/avataaars/png?seed=Nooran%20Sisters" alt="Nooran Sisters">
                     <div>
                         <h3>Nooran Sisters</h3>
                         <span>Folk power</span>
@@ -1306,20 +1237,14 @@ a { color: inherit; text-decoration: none; }
 </html>
 """
 
-# -----------------------
-# CLEANUP & DATABASE
-# -----------------------
-
 def cleanup_after_email(session_id=None):
     """Clean up generated files and delete songs from MongoDB after email sent."""
     def delayed_cleanup():
-        sleep(15)  # Wait 15 seconds after email
+        sleep(15)
         
-        # Delete songs from MongoDB first
         if mongo_handler.connected and session_id:
             mongo_handler.delete_session_songs(session_id)
         
-        # Delete result files
         for f in ("result.mp3", "result.zip"):
             try:
                 if os.path.exists(f):
@@ -1328,7 +1253,6 @@ def cleanup_after_email(session_id=None):
             except Exception as e:
                 print(f"⚠️ Could not delete {f}: {e}")
         
-        # Clear downloads and trimmed folders efficiently
         try:
             if os.path.exists(DOWNLOAD_DIR):
                 for file in os.listdir(DOWNLOAD_DIR):
@@ -1351,12 +1275,7 @@ def cleanup_after_email(session_id=None):
         except Exception as e:
             print(f"⚠️ Could not clear trimmed: {e}")
     
-    # Run cleanup in background thread
     threading.Thread(target=delayed_cleanup, daemon=True).start()
-
-# -----------------------
-# EMAIL
-# -----------------------
 
 def send_email(to_email, zip_path):
     """Send email via subprocess with optimized error handling"""
@@ -1378,11 +1297,6 @@ def send_email(to_email, zip_path):
     except Exception as e:
         print(f"Email job failed: {e}")
         return False
-
-
-# -----------------------
-# ROUTE
-# -----------------------
 
 @app.route("/get-artist-info", methods=["GET"])
 def get_artist_info():
@@ -1427,7 +1341,6 @@ def home():
 
             if email_sent:
                 msg_text = "✅ Mashup generated and emailed successfully!"
-                # Start cleanup in background after email
                 cleanup_after_email(session_id)
             else:
                 msg_text = "⚠️ Mashup created but email failed. File is ready at: result.zip"

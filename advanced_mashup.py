@@ -8,7 +8,6 @@ from pydub.utils import which
 DOWNLOAD_DIR = "downloads"
 TRIM_DIR = "trimmed"
 
-# Cache ffmpeg availability check
 _FFMPEG_CHECKED = False
 
 def ensure_ffmpeg_tools() -> None:
@@ -43,7 +42,6 @@ def trim_mid_chunk(path: str, out_path: str, duration_sec: int, timeout: int = 6
     if total <= 0:
         raise RuntimeError(f"Invalid duration for: {path}")
 
-    # Calculate start position from center
     start = max(0.0, (total - duration_sec) / 2.0) if total > duration_sec else 0
 
     try:
@@ -92,13 +90,10 @@ def merge_with_crossfade(files: List[str], output_file: str, crossfade_ms: int =
     if not files:
         raise RuntimeError("No audio files available to merge")
 
-    # Start with first file normalized
     final_audio = normalize(AudioSegment.from_file(files[0]))
 
-    # Merge remaining files with adaptive crossfade
     for f in files[1:]:
         segment = normalize(AudioSegment.from_file(f))
-        # Adaptive crossfade based on segment lengths
         effective_fade = min(crossfade_ms, len(final_audio) // 2, len(segment) // 2)
         final_audio = final_audio.append(segment, crossfade=effective_fade)
 
