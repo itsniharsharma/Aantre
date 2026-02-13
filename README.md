@@ -1,4 +1,4 @@
-# MashMix 🎧
+# Aantre 🎧
 
 **Professional YouTube Audio Mashup Generator** — Create Spotify-grade mashups from YouTube videos in minutes.
 
