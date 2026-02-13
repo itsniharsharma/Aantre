@@ -71,8 +71,8 @@ class MongoDBHandler:
             print(f"⚠️ Failed to start session: {e}")
             return None
     
-    def store_song(self, filepath, artist, session_id=None):
-        """Store a downloaded song in MongoDB GridFS with chunked upload"""
+    def store_song(self, filepath, artist, session_id=None, file_type=None, source_filename=None):
+        """Store a song in MongoDB GridFS with chunked upload"""
         if not self.connected or not os.path.exists(filepath):
             return None
             
@@ -87,6 +87,8 @@ class MongoDBHandler:
                     artist=artist,
                     session_id=session_id or self.current_session_id,
                     uploaded_at=datetime.utcnow(),
+                    file_type=file_type,
+                    source_filename=source_filename,
                     chunk_size=261120  # 255KB chunks for efficiency
                 )
             

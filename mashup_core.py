@@ -77,7 +77,12 @@ def download_videos(singer, n):
             for filename in os.listdir(DOWNLOAD_DIR):
                 filepath = os.path.join(DOWNLOAD_DIR, filename)
                 if os.path.isfile(filepath):
-                    mongo_handler.store_song(filepath, singer, CURRENT_SESSION_ID)
+                    mongo_handler.store_song(
+                        filepath,
+                        singer,
+                        CURRENT_SESSION_ID,
+                        file_type="download",
+                    )
 
 def validate_args(args):
     if len(args) != 5:
@@ -137,6 +142,26 @@ def run_mashup(singer, n, duration, output, user_email=None):
     prepare_dirs()
     download_videos(singer, n)
     trimmed = trim_all_mid(duration)
+
+    # Store trimmed files in MongoDB with source mapping
+    if mongo_handler.connected and CURRENT_SESSION_ID:
+        downloads_by_base = {}
+        if os.path.exists(DOWNLOAD_DIR):
+            for filename in os.listdir(DOWNLOAD_DIR):
+                base_name, _ = os.path.splitext(filename)
+                downloads_by_base[base_name] = filename
+
+        for trimmed_path in trimmed:
+            trimmed_name = os.path.basename(trimmed_path)
+            base_name, _ = os.path.splitext(trimmed_name)
+            source_filename = downloads_by_base.get(base_name)
+            mongo_handler.store_song(
+                trimmed_path,
+                singer,
+                CURRENT_SESSION_ID,
+                file_type="trimmed",
+                source_filename=source_filename,
+            )
     merge_with_crossfade(trimmed, output)
     
     return CURRENT_SESSION_ID

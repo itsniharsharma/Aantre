@@ -6,7 +6,7 @@ import sys
 import threading
 from time import sleep
 from dotenv import load_dotenv
-from mashup_core import run_mashup, DOWNLOAD_DIR
+from mashup_core import run_mashup, DOWNLOAD_DIR, TRIM_DIR
 from mongodb_helper import mongo_handler
 
 load_dotenv()
@@ -1273,7 +1273,7 @@ def cleanup_after_email(session_id=None):
             except Exception as e:
                 print(f"⚠️ Could not delete {f}: {e}")
         
-        # Clear downloads folder efficiently
+        # Clear downloads and trimmed folders efficiently
         try:
             if os.path.exists(DOWNLOAD_DIR):
                 for file in os.listdir(DOWNLOAD_DIR):
@@ -1284,6 +1284,17 @@ def cleanup_after_email(session_id=None):
                 print(f"✅ Cleared {DOWNLOAD_DIR}")
         except Exception as e:
             print(f"⚠️ Could not clear downloads: {e}")
+
+        try:
+            if os.path.exists(TRIM_DIR):
+                for file in os.listdir(TRIM_DIR):
+                    try:
+                        os.remove(os.path.join(TRIM_DIR, file))
+                    except:
+                        pass
+                print(f"✅ Cleared {TRIM_DIR}")
+        except Exception as e:
+            print(f"⚠️ Could not clear trimmed: {e}")
     
     # Run cleanup in background thread
     threading.Thread(target=delayed_cleanup, daemon=True).start()
