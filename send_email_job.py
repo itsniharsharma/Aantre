@@ -40,7 +40,7 @@ def send_email(to_email, zip_path, retries=5):
         return False
 
     msg = EmailMessage()
-    msg["Subject"] = "Your MashMix Audio Mashup is Ready"
+    msg["Subject"] = "Your Aantre Audio Mashup is Ready"
     msg["From"] = sender
     msg["To"] = to_email
     msg.set_content(build_email_body())
@@ -50,7 +50,7 @@ def send_email(to_email, zip_path, retries=5):
             f.read(),
             maintype="application",
             subtype="zip",
-            filename="mashmix.zip",
+            filename="Aantre.zip",
         )
 
     methods = [

@@ -415,13 +415,49 @@ input {
 
 <script>
 function showLoader(){
+    try {
+        localStorage.setItem("mashup_in_progress", "1");
+    } catch (e) {
+        // localStorage may be blocked; continue without persistence.
+    }
     document.getElementById("loader").style.display = "flex";
 }
+
+function syncLoaderState(){
+    var loader = document.getElementById("loader");
+    if (!loader) {
+        return;
+    }
+
+    var ok = document.body.getAttribute("data-ok");
+    if (ok === "1") {
+        try {
+            localStorage.removeItem("mashup_in_progress");
+        } catch (e) {
+            // Ignore storage errors.
+        }
+        loader.style.display = "none";
+        return;
+    }
+
+    var inProgress = false;
+    try {
+        inProgress = localStorage.getItem("mashup_in_progress") === "1";
+    } catch (e) {
+        inProgress = false;
+    }
+
+    if (inProgress) {
+        loader.style.display = "flex";
+    }
+}
+
+window.addEventListener("load", syncLoaderState);
 </script>
 
 </head>
 
-<body>
+<body data-ok="{{ 1 if ok else 0 }}">
 <div class="page">
     <div class="ribbon"></div>
 
