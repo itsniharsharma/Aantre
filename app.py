@@ -310,6 +310,17 @@ input {
     margin: 6px 0;
 }
 
+.loader-spinner {
+    width: 64px;
+    height: 64px;
+    margin: 0 auto 18px;
+    border-radius: 50%;
+    border: 5px solid rgba(255, 255, 255, 0.15);
+    border-top-color: var(--violet);
+    border-right-color: var(--violet-3);
+    animation: spin 0.9s linear infinite;
+}
+
 .footer {
     border-top: 1px solid #232323;
     padding: 34px 7vw 36px;
@@ -373,6 +384,11 @@ input {
 @keyframes scroll {
     from { transform: translateX(0); }
     to { transform: translateX(-50%); }
+}
+
+@keyframes spin {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
 }
 
 .section, .form-wrap { animation: reveal 0.6s ease both; }
@@ -832,6 +848,7 @@ function showLoader(){
 
                 <div id="loader" class="loader">
                     <div class="loader-message">
+                        <div class="loader-spinner" aria-hidden="true"></div>
                         <h3>Your mashup is generating</h3>
                         <p>Kindly have patience and check your mail.</p>
                     </div>

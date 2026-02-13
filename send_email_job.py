@@ -9,7 +9,7 @@ from dotenv import load_dotenv
 
 
 def build_email_body():
-    return """Greetings from MashMix 🎶
+    return """Greetings from Aantre 🎶
 
 Thank you for your patience while we prepared your custom audio mashup. Your file has been successfully generated and is attached to this email in ZIP format.
 
@@ -17,11 +17,10 @@ We carefully compiled and blended the selected tracks to give you a smooth, high
 
 If you have any feedback, feature requests, or would like another mashup created with different artists or durations, feel free to reply to this email — we’d love to build it for you.
 
-Thank you for choosing MashMix.
+Thank you for choosing Aantre.
 
 Warm regards,
 Nihar Sharma
-Professional Audio Mashup Service
 """
 
 
