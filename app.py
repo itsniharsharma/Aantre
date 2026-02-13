@@ -45,6 +45,7 @@ body {
     background: radial-gradient(1200px 600px at 20% -10%, #2a1f4a 0%, transparent 60%),
                 radial-gradient(900px 500px at 90% 0%, #1c1239 0%, transparent 60%),
                 var(--black);
+    -webkit-text-size-adjust: 100%;
 }
 
 a { color: inherit; text-decoration: none; }
@@ -257,7 +258,7 @@ input {
     border-radius: 12px;
     border: 1px solid #2a2a2a;
     outline: none;
-    font-size: 15px;
+    font-size: 16px;
     background: var(--black-3);
     color: var(--white);
 }
@@ -370,6 +371,24 @@ input {
     .headline h1 { font-size: 42px; }
     .nav { flex-direction: column; gap: 10px; }
     .nav-links { flex-wrap: wrap; justify-content: center; }
+    .section { padding: 28px 6vw 8px; }
+    .carousel-wrap { border-radius: 16px; }
+    .singer-card { min-width: 200px; padding: 12px 14px; }
+    .singer-card img { width: 54px; height: 54px; }
+    .form-wrap { padding: 22px; }
+    .btn { width: 100%; padding: 14px 18px; }
+    .badge { font-size: 12px; padding: 8px 12px; }
+    .loader-message h3 { font-size: 26px; }
+    .loader-message p { font-size: 14px; }
+    .nav-links a { padding: 10px 14px; }
+}
+
+@media (max-width: 480px) {
+    .headline h1 { font-size: 36px; }
+    .headline p { font-size: 16px; }
+    .section h2 { font-size: 28px; }
+    .card { padding: 18px; }
+    .footer { padding: 28px 6vw 32px; }
 }
 
 @media (prefers-reduced-motion: reduce) {
