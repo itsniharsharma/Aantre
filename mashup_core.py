@@ -69,15 +69,15 @@ def download_videos(singer, n):
                 ydl.download([url])
         
         if mongo_handler.connected and CURRENT_SESSION_ID:
-            for filename in os.listdir(DOWNLOAD_DIR):
-                filepath = os.path.join(DOWNLOAD_DIR, filename)
-                if os.path.isfile(filepath):
-                    mongo_handler.store_song(
-                        filepath,
-                        singer,
-                        CURRENT_SESSION_ID,
-                        file_type="download",
-                    )
+            for entry in os.scandir(DOWNLOAD_DIR):
+                if not entry.is_file():
+                    continue
+                mongo_handler.store_song(
+                    entry.path,
+                    singer,
+                    CURRENT_SESSION_ID,
+                    file_type="download",
+                )
 
 def validate_args(args):
     if len(args) != 5:
@@ -140,9 +140,11 @@ def run_mashup(singer, n, duration, output, user_email=None):
     if mongo_handler.connected and CURRENT_SESSION_ID:
         downloads_by_base = {}
         if os.path.exists(DOWNLOAD_DIR):
-            for filename in os.listdir(DOWNLOAD_DIR):
-                base_name, _ = os.path.splitext(filename)
-                downloads_by_base[base_name] = filename
+            for entry in os.scandir(DOWNLOAD_DIR):
+                if not entry.is_file():
+                    continue
+                base_name, _ = os.path.splitext(entry.name)
+                downloads_by_base[base_name] = entry.name
 
         for trimmed_path in trimmed:
             trimmed_name = os.path.basename(trimmed_path)

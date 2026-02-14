@@ -28,14 +28,14 @@ HOME_HTML = """
 
 <style>
 :root {
-    --black: #0b0b0b;
-    --black-2: #121212;
-    --black-3: #1a1a1a;
-    --violet: #9b5cff;
-    --violet-2: #7a3cf0;
-    --violet-3: #c4a7ff;
+    --black: #060a0f;
+    --black-2: #0d1117;
+    --black-3: #161b22;
+    --blue: #1e90ff;
+    --blue-2: #0d6efd;
+    --blue-3: #58a6ff;
     --white: #ffffff;
-    --muted: #b7b7b7;
+    --muted: #8b949e;
 }
 
 * { box-sizing: border-box; }
@@ -44,8 +44,8 @@ body {
     margin: 0;
     font-family: "DM Sans", Arial, sans-serif;
     color: var(--white);
-    background: radial-gradient(1200px 600px at 20% -10%, #2a1f4a 0%, transparent 60%),
-                radial-gradient(900px 500px at 90% 0%, #1c1239 0%, transparent 60%),
+    background: radial-gradient(1200px 600px at 20% -10%, #0a1929 0%, transparent 60%),
+                radial-gradient(900px 500px at 90% 0%, #0d1520 0%, transparent 60%),
                 var(--black);
     -webkit-text-size-adjust: 100%;
 }
@@ -64,7 +64,7 @@ a { color: inherit; text-decoration: none; }
     right: -140px;
     width: 360px;
     height: 360px;
-    background: radial-gradient(circle at 30% 30%, var(--violet), var(--violet-2));
+    background: radial-gradient(circle at 30% 30%, var(--blue), var(--blue-2));
     border-radius: 50%;
     opacity: 0.18;
 }
@@ -134,8 +134,8 @@ a { color: inherit; text-decoration: none; }
     padding: 10px 16px;
     border-radius: 999px;
     border: 1px solid #2a2a2a;
-    background: rgba(155, 92, 255, 0.16);
-    color: var(--violet-3);
+    background: rgba(30, 144, 255, 0.16);
+    color: var(--blue-3);
     font-weight: 600;
     white-space: nowrap;
 }
@@ -150,8 +150,8 @@ a { color: inherit; text-decoration: none; }
 }
 
 .btn-primary {
-    background: var(--violet);
-    color: var(--black);
+    background: var(--blue);
+    color: var(--white);
 }
 
 .btn-outline {
@@ -182,8 +182,8 @@ a { color: inherit; text-decoration: none; }
 }
 
 .toggle-group button.active {
-    background: var(--violet);
-    color: var(--black);
+    background: var(--blue);
+    color: var(--white);
 }
 
 .input-rows {
@@ -206,6 +206,115 @@ a { color: inherit; text-decoration: none; }
     background: transparent;
     border: 1px solid #2a2a2a;
     color: var(--white);
+}
+
+.image-carousel {
+    position: relative;
+    width: 100%;
+    max-width: 1200px;
+    margin: 0 auto 40px;
+    border-radius: 20px;
+    overflow: hidden;
+    box-shadow: 0 20px 50px rgba(0, 0, 0, 0.5);
+}
+
+.carousel-container {
+    position: relative;
+    height: 380px;
+}
+
+.carousel-slide {
+    position: absolute;
+    width: 100%;
+    height: 100%;
+    opacity: 0;
+    transition: opacity 0.8s ease-in-out;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+}
+
+.carousel-slide.active {
+    opacity: 1;
+}
+
+.slide-content h2 {
+    font-family: "Space Grotesk", Arial, sans-serif;
+    font-size: 42px;
+    margin: 0 0 12px;
+    color: var(--white);
+}
+
+.slide-content p {
+    font-size: 20px;
+    color: rgba(255, 255, 255, 0.9);
+    margin: 0;
+}
+
+.carousel-btn {
+    position: absolute;
+    top: 50%;
+    transform: translateY(-50%);
+    background: rgba(0, 0, 0, 0.5);
+    color: var(--white);
+    border: none;
+    padding: 16px;
+    cursor: pointer;
+    font-size: 18px;
+    z-index: 10;
+    transition: 0.3s;
+}
+
+.carousel-btn:hover {
+    background: rgba(0, 0, 0, 0.8);
+}
+
+.carousel-btn.prev {
+    left: 10px;
+}
+
+.carousel-btn.next {
+    right: 10px;
+}
+
+.carousel-dots {
+    position: absolute;
+    bottom: 20px;
+    left: 50%;
+    transform: translateX(-50%);
+    display: flex;
+    gap: 10px;
+    z-index: 10;
+}
+
+.dot {
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.5);
+    cursor: pointer;
+    transition: 0.3s;
+}
+
+.dot.active {
+    background: var(--blue);
+    width: 32px;
+    border-radius: 6px;
+}
+
+@media (max-width: 768px) {
+    .carousel-container {
+        height: 260px;
+    }
+    
+    .slide-content h2 {
+        font-size: 28px;
+    }
+    
+    .slide-content p {
+        font-size: 16px;
+    }
 }
 
 .section {
@@ -316,7 +425,7 @@ input {
     border-radius: 12px;
     margin-bottom: 14px;
     color: var(--black);
-    background: var(--violet);
+    background: var(--blue);
 }
 
 .loader {
@@ -357,8 +466,8 @@ input {
     margin: 0 auto 18px;
     border-radius: 50%;
     border: 5px solid rgba(255, 255, 255, 0.15);
-    border-top-color: var(--violet);
-    border-right-color: var(--violet-3);
+    border-top-color: var(--blue);
+    border-right-color: var(--blue-3);
     animation: spin 0.9s linear infinite;
 }
 
@@ -396,8 +505,8 @@ input {
     border: 1px dashed #2e2e2e;
     border-radius: 18px;
     padding: 18px 22px;
-    background: rgba(155, 92, 255, 0.08);
-    color: var(--violet-3);
+    background: rgba(30, 144, 255, 0.08);
+    color: var(--blue-3);
     font-weight: 600;
 }
 
@@ -471,8 +580,11 @@ function syncLoaderState(){
         return;
     }
 
-    var ok = document.body.getAttribute("data-ok");
-    if (ok === "1") {
+    // Check if there's any message on the page (success or error)
+    var hasMessage = document.querySelector(".success") || document.querySelector(".error");
+    
+    // If there's a message, clear the loader state and hide
+    if (hasMessage) {
         try {
             localStorage.removeItem("mashup_in_progress");
         } catch (e) {
@@ -482,6 +594,7 @@ function syncLoaderState(){
         return;
     }
 
+    // Only show loader if generation is in progress and no message yet
     var inProgress = false;
     try {
         inProgress = localStorage.getItem("mashup_in_progress") === "1";
@@ -491,6 +604,8 @@ function syncLoaderState(){
 
     if (inProgress) {
         loader.style.display = "flex";
+    } else {
+        loader.style.display = "none";
     }
 }
 
@@ -564,6 +679,56 @@ function addMultiInput(){
 window.addEventListener("load", function(){
     setMultiMode("singer");
 });
+
+var currentSlideIndex = 0;
+var slideTimer;
+
+function showSlide(n) {
+    var slides = document.querySelectorAll('.carousel-slide');
+    var dots = document.querySelectorAll('.dot');
+    
+    if (!slides.length) return;
+    
+    if (n >= slides.length) currentSlideIndex = 0;
+    if (n < 0) currentSlideIndex = slides.length - 1;
+    
+    slides.forEach(function(slide) {
+        slide.classList.remove('active');
+    });
+    
+    dots.forEach(function(dot) {
+        dot.classList.remove('active');
+    });
+    
+    slides[currentSlideIndex].classList.add('active');
+    dots[currentSlideIndex].classList.add('active');
+}
+
+function moveCarousel(n) {
+    clearInterval(slideTimer);
+    currentSlideIndex += n;
+    showSlide(currentSlideIndex);
+    startAutoSlide();
+}
+
+function currentSlide(n) {
+    clearInterval(slideTimer);
+    currentSlideIndex = n;
+    showSlide(currentSlideIndex);
+    startAutoSlide();
+}
+
+function startAutoSlide() {
+    slideTimer = setInterval(function() {
+        currentSlideIndex++;
+        showSlide(currentSlideIndex);
+    }, 5000);
+}
+
+window.addEventListener("load", function() {
+    showSlide(currentSlideIndex);
+    startAutoSlide();
+});
 </script>
 
 </head>
@@ -581,15 +746,47 @@ window.addEventListener("load", function(){
         </div>
     </div>
 
+    <section class="section" id="hero-carousel">
+        <div class="image-carousel">
+            <div class="carousel-container">
+                <div class="carousel-slide active" style="background: linear-gradient(135deg, #1e90ff 0%, #0d6efd 100%);">
+                    <div class="slide-content">
+                        <h2>Premium Multi-Singer Mashups</h2>
+                        <p>Create cinematic mashups with up to 5 singers or songs</p>
+                    </div>
+                </div>
+                <div class="carousel-slide" style="background: linear-gradient(135deg, #0d6efd 0%, #1e3a8a 100%);">
+                    <div class="slide-content">
+                        <h2>AI-Powered Audio Mixing</h2>
+                        <p>Advanced EQ, compression & loudness normalization</p>
+                    </div>
+                </div>
+                <div class="carousel-slide" style="background: linear-gradient(135deg, #1e3a8a 0%, #1e90ff 100%);">
+                    <div class="slide-content">
+                        <h2>Instant Email Delivery</h2>
+                        <p>Your mashup delivered directly to your inbox</p>
+                    </div>
+                </div>
+            </div>
+            <button class="carousel-btn prev" onclick="moveCarousel(-1)">&#10094;</button>
+            <button class="carousel-btn next" onclick="moveCarousel(1)">&#10095;</button>
+            <div class="carousel-dots">
+                <span class="dot active" onclick="currentSlide(0)"></span>
+                <span class="dot" onclick="currentSlide(1)"></span>
+                <span class="dot" onclick="currentSlide(2)"></span>
+            </div>
+        </div>
+    </section>
+
     <section class="section" id="showcase">
         <div class="headline">
             <div>
                 <h1>Craft your favorite singer mashup in minutes.</h1>
-                <p>Aantre is a version-1, software-in-a-box experience for Bollywood mashups with clean trims, automated search, and instant delivery.</p>
+                <p>Aantre V2 brings premium multi-artist mashups with professional-grade audio processing, beat-synced transitions, and instant delivery.</p>
             </div>
-            <div class="badge">Version 1 - Software in a Box</div>
+            <div class="badge">Version 2 - Premium Edition</div>
         </div>
-        <h2>Bollywood Voices Carousel</h2>
+        <h2>Listen To Your Favorite Singers</h2>
         <div class="carousel-wrap" aria-label="Bollywood singers carousel">
             <div class="carousel-track">
                 <div class="singer-card">
@@ -1071,14 +1268,14 @@ PRICING_HTML = """
 
 <style>
 :root {
-    --black: #0b0b0b;
-    --black-2: #121212;
-    --black-3: #1a1a1a;
-    --violet: #9b5cff;
-    --violet-2: #7a3cf0;
-    --violet-3: #c4a7ff;
+    --black: #060a0f;
+    --black-2: #0d1117;
+    --black-3: #161b22;
+    --blue: #1e90ff;
+    --blue-2: #0d6efd;
+    --blue-3: #58a6ff;
     --white: #ffffff;
-    --muted: #b7b7b7;
+    --muted: #8b949e;
 }
 
 * { box-sizing: border-box; }
@@ -1087,8 +1284,8 @@ body {
     margin: 0;
     font-family: "DM Sans", Arial, sans-serif;
     color: var(--white);
-    background: radial-gradient(1200px 600px at 20% -10%, #2a1f4a 0%, transparent 60%),
-                radial-gradient(900px 500px at 90% 0%, #1c1239 0%, transparent 60%),
+    background: radial-gradient(1200px 600px at 20% -10%, #0a1929 0%, transparent 60%),
+                radial-gradient(900px 500px at 90% 0%, #0d1520 0%, transparent 60%),
                 var(--black);
 }
 
@@ -1106,7 +1303,7 @@ a { color: inherit; text-decoration: none; }
     right: -140px;
     width: 360px;
     height: 360px;
-    background: radial-gradient(circle at 30% 30%, var(--violet), var(--violet-2));
+    background: radial-gradient(circle at 30% 30%, var(--blue), var(--blue-2));
     border-radius: 50%;
     opacity: 0.18;
 }
@@ -1169,7 +1366,7 @@ a { color: inherit; text-decoration: none; }
 
 .pricing-card strong {
     font-size: 40px;
-    color: var(--violet);
+    color: var(--blue);
 }
 
 .pricing-card ul {
@@ -1213,22 +1410,54 @@ a { color: inherit; text-decoration: none; }
     <section class="section">
         <h1>Pricing</h1>
         <p>Simple, early-access pricing while we build the full creator community.</p>
-        <div class="pricing-card">
-            <h2>Free</h2>
-            <strong>INR 0</strong>
-            <p>Everything you need to generate your first mashup.</p>
-            <ul>
-                <li>Auto search and download</li>
-                <li>Clean trims and stitching</li>
-                <li>Email delivery</li>
-            </ul>
+        
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 24px; max-width: 1100px; margin: 0 auto;">
+            <div class="pricing-card">
+                <h2>Free</h2>
+                <strong>INR 0</strong>
+                <p>Everything you need to generate your first mashup.</p>
+                <ul>
+                    <li>Auto search and download</li>
+                    <li>Clean trims and stitching</li>
+                    <li>Email delivery</li>
+                </ul>
+            </div>
+            
+            <div class="pricing-card" style="position: relative; border: 2px solid var(--primary);">
+                <div style="position: absolute; top: -14px; left: 50%; transform: translateX(-50%); background: linear-gradient(135deg, var(--primary), var(--accent)); color: white; padding: 4px 16px; border-radius: 12px; font-size: 12px; font-weight: 600; letter-spacing: 0.5px;">CURRENTLY FREE</div>
+                <h2>Regular Plan</h2>
+                <strong style="text-decoration: line-through; opacity: 0.5;">INR 10</strong>
+                <strong style="font-size: 32px; color: var(--primary);">FREE</strong>
+                <p>Advanced multi-mashup features with premium quality.</p>
+                <ul>
+                    <li>Up to 5 singers or songs</li>
+                    <li>Beat-synced transitions</li>
+                    <li>Professional EQ & compression</li>
+                    <li>Rotating crossover mixing</li>
+                    <li>-14 LUFS mastering</li>
+                </ul>
+            </div>
+
+            <div class="pricing-card" style="position: relative; opacity: 0.75;">
+                <div style="position: absolute; top: -14px; left: 50%; transform: translateX(-50%); background: #2a2a2a; color: var(--muted); padding: 4px 16px; border-radius: 12px; font-size: 12px; font-weight: 600; letter-spacing: 0.5px;">UNAVAILABLE</div>
+                <h2>Create a Band</h2>
+                <strong>INR 199 / month</strong>
+                <p>For creators who want to stream original music and sell their voice.</p>
+                <ul>
+                    <li>Creator streaming profile</li>
+                    <li>Voice marketplace listing</li>
+                    <li>Band collaboration workspace</li>
+                    <li>Royalty-ready exports</li>
+                    <li>Audience link-in-bio page</li>
+                </ul>
+            </div>
         </div>
     </section>
 
     <footer class="footer">
         <div class="footer-bottom">
             <span>© 2026 Aantre. All rights reserved.</span>
-            <span>Version 1 pricing.</span>
+            <span>Version 2 pricing — Premium features launching soon.</span>
         </div>
     </footer>
 </div>
@@ -1246,14 +1475,14 @@ ABOUT_HTML = """
 
 <style>
 :root {
-    --black: #0b0b0b;
-    --black-2: #121212;
-    --black-3: #1a1a1a;
-    --violet: #9b5cff;
-    --violet-2: #7a3cf0;
-    --violet-3: #c4a7ff;
+    --black: #060a0f;
+    --black-2: #0d1117;
+    --black-3: #161b22;
+    --blue: #1e90ff;
+    --blue-2: #0d6efd;
+    --blue-3: #58a6ff;
     --white: #ffffff;
-    --muted: #b7b7b7;
+    --muted: #8b949e;
 }
 
 * { box-sizing: border-box; }
@@ -1262,8 +1491,8 @@ body {
     margin: 0;
     font-family: "DM Sans", Arial, sans-serif;
     color: var(--white);
-    background: radial-gradient(1200px 600px at 20% -10%, #2a1f4a 0%, transparent 60%),
-                radial-gradient(900px 500px at 90% 0%, #1c1239 0%, transparent 60%),
+    background: radial-gradient(1200px 600px at 20% -10%, #0a1929 0%, transparent 60%),
+                radial-gradient(900px 500px at 90% 0%, #0d1520 0%, transparent 60%),
                 var(--black);
 }
 
@@ -1281,7 +1510,7 @@ a { color: inherit; text-decoration: none; }
     right: -140px;
     width: 360px;
     height: 360px;
-    background: radial-gradient(circle at 30% 30%, var(--violet), var(--violet-2));
+    background: radial-gradient(circle at 30% 30%, var(--blue), var(--blue-2));
     border-radius: 50%;
     opacity: 0.18;
 }
@@ -1382,10 +1611,20 @@ a { color: inherit; text-decoration: none; }
     <section class="section">
         <h1>About</h1>
         <div class="info-card">
-            <p>Hi, I am Nihar Sharma. I am building Aantre as a version-1, software-in-a-box experience that helps people generate Bollywood mashups quickly and cleanly.</p>
+            <p>Hi, I am Nihar Sharma. I am building Aantre as a software experience that helps people generate mashups quickly and cleanly.</p>
             <p>If you are interested in building your passion, let us team up and create something meaningful together.</p>
-            <p>Connect on LinkedIn: <a href="https://www.linkedin.com/in/itsniharsharma/" target="_blank" rel="noopener">https://www.linkedin.com/in/itsniharsharma/</a></p>
-            <h3>Version 1 Features</h3>
+            <p>Connect on LinkedIn: <a href="https://www.linkedin.com/in/itsniharsharma/" target="_blank" rel="noopener" style="color: var(--blue-3); text-decoration: underline;">linkedin.com/in/itsniharsharma</a></p>
+            
+            <h3 style="margin-top: 32px;">Version 2 Features (Premium)</h3>
+            <ul>
+                <li><strong>Multi-Mashup Mode:</strong> Blend up to 5 singers or songs in one track</li>
+                <li><strong>Beat-Synced Transitions:</strong> Smooth crossfades with tempo matching</li>
+                <li><strong>Professional Audio Processing:</strong> Multi-band EQ, compression, and -14 LUFS mastering</li>
+                <li><strong>Rotating Crossover Mixing:</strong> Dynamic A→B→A rotation pattern for engaging flow</li>
+                <li><strong>Loudest-Window Selection:</strong> Automatically extracts the "antara" (most epic) sections</li>
+            </ul>
+            
+            <h3 style="margin-top: 28px;">Version 1 Features (Free)</h3>
             <ul>
                 <li>Smart search for top artist tracks</li>
                 <li>Clean trims and seamless stitching</li>

@@ -65,11 +65,12 @@ def trim_all_mid(duration_sec: int) -> List[str]:
     print("\nTrimming audio files from the middle...")
     
     trimmed_files = []
-    for file in os.listdir(DOWNLOAD_DIR):
-        path = os.path.join(DOWNLOAD_DIR, file)
-        if not os.path.isfile(path):
+    for entry in os.scandir(DOWNLOAD_DIR):
+        if not entry.is_file():
             continue
-            
+
+        path = entry.path
+        file = entry.name
         print(f"Trimming: {file}")
         try:
             out_name = os.path.splitext(file)[0] + ".mp3"
