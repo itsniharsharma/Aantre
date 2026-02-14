@@ -9,6 +9,12 @@ from dotenv import load_dotenv
 from mashup_core import run_mashup, DOWNLOAD_DIR, TRIM_DIR
 from mongodb_helper import mongo_handler
 
+V2_DIR = os.path.join(os.path.dirname(__file__), "v-2-multimash")
+if V2_DIR not in sys.path:
+    sys.path.insert(0, V2_DIR)
+
+from multimash_core import run_multi_mashup
+
 load_dotenv()
 app = Flask(__name__)
 
@@ -155,6 +161,52 @@ a { color: inherit; text-decoration: none; }
 }
 
 .btn:hover { transform: translateY(-2px); }
+
+.toggle-group {
+    display: inline-flex;
+    gap: 8px;
+    padding: 6px;
+    border-radius: 999px;
+    background: var(--black-3);
+    margin-bottom: 16px;
+}
+
+.toggle-group button {
+    border: none;
+    padding: 8px 14px;
+    border-radius: 999px;
+    font-weight: 600;
+    cursor: pointer;
+    background: transparent;
+    color: var(--muted);
+}
+
+.toggle-group button.active {
+    background: var(--violet);
+    color: var(--black);
+}
+
+.input-rows {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    margin-bottom: 10px;
+}
+
+.input-row {
+    display: flex;
+    gap: 10px;
+}
+
+.input-row input {
+    margin-bottom: 0;
+}
+
+.btn-ghost {
+    background: transparent;
+    border: 1px solid #2a2a2a;
+    color: var(--white);
+}
 
 .section {
     padding: 40px 7vw 10px;
@@ -401,11 +453,14 @@ input {
 </style>
 
 <script>
-function showLoader(){
+function showLoader(message){
     try {
         localStorage.setItem("mashup_in_progress", "1");
     } catch (e) {
         // localStorage may be blocked; continue without persistence.
+    }
+    if (message) {
+        document.getElementById("loader-title").textContent = message;
     }
     document.getElementById("loader").style.display = "flex";
 }
@@ -440,11 +495,80 @@ function syncLoaderState(){
 }
 
 window.addEventListener("load", syncLoaderState);
+
+function setMultiMode(mode){
+    var singerBtn = document.getElementById("mode-singer");
+    var songBtn = document.getElementById("mode-song");
+    var modeInput = document.getElementById("multi-mode");
+    var videosWrap = document.getElementById("multi-videos-wrap");
+    var videosInput = document.getElementById("multi-videos");
+    var label = document.getElementById("multi-label");
+
+    if (!modeInput || !singerBtn || !songBtn || !videosWrap || !label || !videosInput) {
+        return;
+    }
+
+    modeInput.value = mode;
+    singerBtn.classList.toggle("active", mode === "singer");
+    songBtn.classList.toggle("active", mode === "song");
+    videosWrap.style.display = mode === "song" ? "none" : "block";
+    videosInput.required = mode === "singer";
+    videosInput.disabled = mode === "song";
+    label.textContent = mode === "song" ? "Songs (up to 5)" : "Singers (up to 5)";
+    updatePlaceholders(mode);
+}
+
+function updatePlaceholders(mode){
+    var inputs = document.querySelectorAll("#multi-inputs input[name='queries']");
+    var prefix = mode === "song" ? "Song" : "Singer";
+    for (var i = 0; i < inputs.length; i += 1) {
+        inputs[i].placeholder = prefix + " " + (i + 1);
+    }
+}
+
+function addMultiInput(){
+    var container = document.getElementById("multi-inputs");
+    if (!container) {
+        return;
+    }
+    var count = container.querySelectorAll("input[name='queries']").length;
+    if (count >= 5) {
+        return;
+    }
+
+    var row = document.createElement("div");
+    row.className = "input-row";
+
+    var input = document.createElement("input");
+    input.name = "queries";
+    input.required = false;
+
+    var modeInput = document.getElementById("multi-mode");
+    var mode = modeInput ? modeInput.value : "singer";
+    input.placeholder = (mode === "song" ? "Song " : "Singer ") + (count + 1);
+
+    var removeBtn = document.createElement("button");
+    removeBtn.type = "button";
+    removeBtn.className = "btn btn-ghost";
+    removeBtn.textContent = "Remove";
+    removeBtn.onclick = function(){
+        container.removeChild(row);
+        updatePlaceholders(mode);
+    };
+
+    row.appendChild(input);
+    row.appendChild(removeBtn);
+    container.appendChild(row);
+}
+
+window.addEventListener("load", function(){
+    setMultiMode("singer");
+});
 </script>
 
 </head>
 
-<body data-ok="{{ 1 if ok else 0 }}">
+<body data-ok="{{ 1 if ok_any else 0 }}">
 <div class="page">
     <div class="ribbon"></div>
 
@@ -811,11 +935,12 @@ window.addEventListener("load", syncLoaderState);
     <section class="section" id="generate">
         <h2>Generate Your Mashup</h2>
         <div class="form-wrap">
-            {% if msg %}
-            <div class="{{'success' if ok else 'error'}}">{{msg}}</div>
+            {% if msg_single %}
+            <div class="{{'success' if ok_single else 'error'}}">{{msg_single}}</div>
             {% endif %}
 
-            <form method="post" onsubmit="showLoader()">
+            <form method="post" onsubmit="showLoader('Generating your mashup...')">
+                <input type="hidden" name="form_type" value="single">
                 <label>Singer / Artist Name</label>
                 <input name="singer" required placeholder="e.g. Arijit Singh">
 
@@ -835,10 +960,53 @@ window.addEventListener("load", syncLoaderState);
                 <div id="loader" class="loader">
                     <div class="loader-message">
                         <div class="loader-spinner" aria-hidden="true"></div>
-                        <h3>Your mashup is generating</h3>
+                        <h3 id="loader-title">Your mashup is generating</h3>
                         <p>Kindly have patience and check your mail.</p>
                     </div>
                 </div>
+            </form>
+        </div>
+    </section>
+
+    <section class="section" id="generate-multi">
+        <h2>Generate Multi Mashup (V2)</h2>
+        <div class="form-wrap">
+            {% if msg_multi %}
+            <div class="{{'success' if ok_multi else 'error'}}">{{msg_multi}}</div>
+            {% endif %}
+
+            <form method="post" onsubmit="showLoader('Generating your multi mashup...')">
+                <input type="hidden" name="form_type" value="multi">
+                <input type="hidden" id="multi-mode" name="multi_mode" value="singer">
+
+                <div class="toggle-group" role="group" aria-label="Multi mashup mode">
+                    <button type="button" id="mode-singer" class="active" onclick="setMultiMode('singer')">Singer</button>
+                    <button type="button" id="mode-song" onclick="setMultiMode('song')">Song</button>
+                </div>
+
+                <label id="multi-label">Singers (up to 5)</label>
+                <div id="multi-inputs" class="input-rows">
+                    <div class="input-row">
+                        <input name="queries" placeholder="Singer 1">
+                        <button class="btn btn-ghost" type="button" onclick="addMultiInput()">Add</button>
+                    </div>
+                </div>
+                <div class="note">Add only what you need. Maximum 5 entries.</div>
+
+                <div id="multi-videos-wrap">
+                    <label>Total Videos (shared across entries)</label>
+                    <input id="multi-videos" name="n_multi" type="number" required min="10">
+                    <div class="note">We split the total across your entries for balanced variety.</div>
+                </div>
+
+                <label>Clip Duration (seconds)</label>
+                <input name="dur_multi" type="number" required min="21">
+                <div class="note">Must be greater than 20 seconds</div>
+
+                <label>Email Address</label>
+                <input name="email_multi" type="email" required placeholder="you@gmail.com">
+
+                <button class="btn btn-primary" type="submit">Generate Premium Multi Mashup</button>
             </form>
         </div>
     </section>
@@ -1320,39 +1488,80 @@ def serve_audio(filename):
 
 @app.route("/", methods=["GET","POST"])
 def home():
+    msg_single = None
+    ok_single = False
+    msg_multi = None
+    ok_multi = False
+
     if request.method == "POST":
-        try:
-            singer = request.form["singer"]
-            n = int(request.form["n"])
-            dur = int(request.form["dur"])
-            email = request.form["email"]
+        form_type = request.form.get("form_type", "single")
 
-            if n <= 10 or dur <= 20:
-                return render_template_string(HOME_HTML,
-                    msg="Videos must be >10 and duration >20",
-                    ok=False)
+        if form_type == "multi":
+            try:
+                mode = request.form.get("multi_mode", "singer").strip().lower()
+                queries = [q.strip() for q in request.form.getlist("queries") if q.strip()]
 
-            session_id = run_mashup(singer, n, dur, "result.mp3", email)
+                total_videos = None
+                if mode == "singer":
+                    total_videos = int(request.form["n_multi"])
+                dur = int(request.form["dur_multi"])
+                email = request.form["email_multi"].strip()
 
-            with zipfile.ZipFile("result.zip", "w") as z:
-                z.write("result.mp3")
+                if dur <= 20:
+                    raise RuntimeError("Duration must be greater than 20 seconds")
 
-            email_sent = send_email(email, "result.zip")
+                session_id = run_multi_mashup(queries, total_videos, dur, "result.mp3", email, mode=mode)
 
-            if email_sent:
-                msg_text = "✅ Mashup generated and emailed successfully!"
-                cleanup_after_email(session_id)
-            else:
-                msg_text = "⚠️ Mashup created but email failed. File is ready at: result.zip"
+                with zipfile.ZipFile("result.zip", "w") as z:
+                    z.write("result.mp3")
 
-            return render_template_string(HOME_HTML, msg=msg_text, ok=email_sent)
+                email_sent = send_email(email, "result.zip")
 
-        except Exception as e:
-            return render_template_string(HOME_HTML,
-                msg=str(e),
-                ok=False)
+                if email_sent:
+                    msg_multi = "✅ Premium multi mashup generated and emailed successfully!"
+                    ok_multi = True
+                    cleanup_after_email(session_id)
+                else:
+                    msg_multi = "⚠️ Multi mashup created but email failed. File is ready at: result.zip"
 
-    return render_template_string(HOME_HTML, msg=None)
+            except Exception as e:
+                msg_multi = str(e)
+
+        else:
+            try:
+                singer = request.form["singer"]
+                n = int(request.form["n"])
+                dur = int(request.form["dur"])
+                email = request.form["email"]
+
+                if n <= 10 or dur <= 20:
+                    raise RuntimeError("Videos must be >10 and duration >20")
+
+                session_id = run_mashup(singer, n, dur, "result.mp3", email)
+
+                with zipfile.ZipFile("result.zip", "w") as z:
+                    z.write("result.mp3")
+
+                email_sent = send_email(email, "result.zip")
+
+                if email_sent:
+                    msg_single = "✅ Mashup generated and emailed successfully!"
+                    ok_single = True
+                    cleanup_after_email(session_id)
+                else:
+                    msg_single = "⚠️ Mashup created but email failed. File is ready at: result.zip"
+
+            except Exception as e:
+                msg_single = str(e)
+
+    return render_template_string(
+        HOME_HTML,
+        msg_single=msg_single,
+        ok_single=ok_single,
+        msg_multi=msg_multi,
+        ok_multi=ok_multi,
+        ok_any=bool(ok_single or ok_multi),
+    )
 
 @app.route("/pricing", methods=["GET"])
 def pricing():

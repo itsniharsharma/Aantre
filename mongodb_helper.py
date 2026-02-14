@@ -28,14 +28,16 @@ class MongoDBHandler:
                 print("⚠️ MONGO_URI not found in .env")
                 return
                 
+            allow_invalid = os.getenv("MONGO_TLS_INSECURE", "0") == "1"
+
             self.client = MongoClient(
                 MONGO_URI,
                 connectTimeoutMS=10000,
                 serverSelectionTimeoutMS=10000,
                 maxPoolSize=10,
                 retryWrites=True,
-                ssl=True,
-                tlsAllowInvalidCertificates=True
+                tls=True,
+                tlsAllowInvalidCertificates=allow_invalid,
             )
             
             self.client.admin.command('ping')
