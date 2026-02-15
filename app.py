@@ -1,10 +1,14 @@
-from flask import Flask, request, render_template_string, send_file, redirect
+from flask import Flask, request, render_template_string, send_file, redirect, jsonify
+from flask_socketio import SocketIO, emit, join_room, leave_room
 import zipfile
 import os
 import subprocess
 import sys
 import threading
+import secrets
+import string
 from time import sleep
+from datetime import datetime
 from dotenv import load_dotenv
 from mashup_core import run_mashup, DOWNLOAD_DIR, TRIM_DIR
 from mongodb_helper import mongo_handler
@@ -17,40 +21,120 @@ from multimash_core import run_multi_mashup
 
 load_dotenv()
 app = Flask(__name__)
+socketio = SocketIO(app, cors_allowed_origins="*", async_mode="threading")
+
+STREAM_ROOM_MAX = 30
+STREAM_CODE_LEN = 6
+STREAM_COLLECTION = "stream_rooms"
+_STREAM_INDEX_READY = False
+STREAM_PARTICIPANTS = {}
+SOCKET_ROOM_BY_SID = {}
+STREAM_ROOMS_LOCAL = {}
+STREAM_HOSTS = {}
+LAST_CHAT_BY_SID = {}
 
 HOME_HTML = """
 <!DOCTYPE html>
 <html>
 <head>
-<title>Aantre — AI Mashup Generator</title>
+<title>Aantre — Live Music Streaming</title>
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;700&family=Space+Grotesk:wght@500;600&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Sora:wght@400;500;600;700&display=swap" rel="stylesheet">
 
 <style>
 :root {
-    --black: #060a0f;
-    --black-2: #0d1117;
-    --black-3: #161b22;
-    --blue: #1e90ff;
-    --blue-2: #0d6efd;
-    --blue-3: #58a6ff;
+    --black: #05060a;
+    --black-2: #0b0e16;
+    --black-3: #101625;
+    --cyan: #3bd6c6;
+    --cyan-2: #1aa397;
+    --amber: #f1c27b;
     --white: #ffffff;
-    --muted: #8b949e;
+    --muted: #8f98ab;
+    --blue: var(--cyan);
+    --blue-2: var(--cyan-2);
+    --blue-3: #7cf2e5;
 }
 
 * { box-sizing: border-box; }
 
 body {
     margin: 0;
-    font-family: "DM Sans", Arial, sans-serif;
+    font-family: "Sora", Arial, sans-serif;
     color: var(--white);
-    background: radial-gradient(1200px 600px at 20% -10%, #0a1929 0%, transparent 60%),
-                radial-gradient(900px 500px at 90% 0%, #0d1520 0%, transparent 60%),
-                var(--black);
+    background: radial-gradient(1200px 600px at 20% -10%, #0f1a2a 0%, transparent 60%),
+                radial-gradient(900px 500px at 90% 0%, #0d1b22 0%, transparent 60%),
+                linear-gradient(180deg, #06080f 0%, #05060a 60%);
     -webkit-text-size-adjust: 100%;
 }
 
 a { color: inherit; text-decoration: none; }
+
+.btn {
+    border: none;
+    padding: 12px 18px;
+    border-radius: 999px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: 0.2s;
+}
+
+.btn-primary {
+    background: linear-gradient(135deg, var(--blue), var(--blue-2));
+    color: #041012;
+}
+
+.btn-outline {
+    background: transparent;
+    color: var(--white);
+    border: 2px solid rgba(255, 255, 255, 0.6);
+}
+
+.btn:hover { transform: translateY(-2px); }
+
+.btn {
+    border: none;
+    padding: 12px 18px;
+    border-radius: 999px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: 0.2s;
+}
+
+.btn-primary {
+    background: linear-gradient(135deg, var(--cyan), var(--cyan-2));
+    color: #041012;
+}
+
+.btn-outline {
+    background: transparent;
+    color: var(--white);
+    border: 2px solid rgba(255, 255, 255, 0.6);
+}
+
+.btn:hover { transform: translateY(-2px); }
+
+.btn {
+    border: none;
+    padding: 10px 16px;
+    border-radius: 999px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: 0.2s;
+}
+
+.btn-primary {
+    background: var(--blue);
+    color: var(--white);
+}
+
+.btn-outline {
+    background: transparent;
+    color: var(--white);
+    border: 2px solid var(--white);
+}
+
+.btn:hover { transform: translateY(-2px); }
 
 .page {
     min-height: 100vh;
@@ -64,7 +148,7 @@ a { color: inherit; text-decoration: none; }
     right: -140px;
     width: 360px;
     height: 360px;
-    background: radial-gradient(circle at 30% 30%, var(--blue), var(--blue-2));
+    background: radial-gradient(circle at 30% 30%, var(--cyan), var(--cyan-2));
     border-radius: 50%;
     opacity: 0.18;
 }
@@ -83,10 +167,24 @@ a { color: inherit; text-decoration: none; }
 }
 
 .logo {
-    font-family: "Space Grotesk", Arial, sans-serif;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-family: "Bebas Neue", "Sora", Arial, sans-serif;
     font-size: 26px;
     letter-spacing: 1px;
     color: var(--white);
+}
+
+.logo-mark {
+    width: 34px;
+    height: 34px;
+    object-fit: contain;
+    display: block;
+}
+
+.logo-text {
+    letter-spacing: 1.2px;
 }
 
 .nav-links {
@@ -94,6 +192,83 @@ a { color: inherit; text-decoration: none; }
     gap: 20px;
     font-weight: 600;
     color: var(--muted);
+}
+
+.nav-actions {
+    display: flex;
+    gap: 10px;
+    align-items: center;
+}
+
+.nav-actions .btn {
+    padding: 10px 16px;
+    font-size: 14px;
+}
+
+.nav-actions {
+    display: flex;
+    gap: 10px;
+    align-items: center;
+}
+
+.nav-actions .btn {
+    padding: 10px 16px;
+    font-size: 14px;
+}
+
+.nav-actions {
+    display: flex;
+    gap: 10px;
+    align-items: center;
+}
+
+.nav-actions .btn {
+    padding: 10px 16px;
+    font-size: 14px;
+}
+
+.nav-actions {
+    display: flex;
+    gap: 10px;
+    align-items: center;
+}
+
+.nav-actions .btn {
+    padding: 10px 16px;
+    font-size: 14px;
+}
+
+.nav-actions {
+    display: flex;
+    gap: 10px;
+    align-items: center;
+}
+
+.nav-actions .btn {
+    padding: 10px 16px;
+    font-size: 14px;
+}
+
+.nav-actions {
+    display: flex;
+    gap: 10px;
+    align-items: center;
+}
+
+.nav-actions .btn {
+    padding: 10px 16px;
+    font-size: 14px;
+}
+
+.nav-actions {
+    display: flex;
+    gap: 10px;
+    align-items: center;
+}
+
+.nav-actions .btn {
+    padding: 10px 16px;
+    font-size: 14px;
 }
 
 .nav-links a {
@@ -116,8 +291,8 @@ a { color: inherit; text-decoration: none; }
 }
 
 .headline h1 {
-    font-family: "Space Grotesk", Arial, sans-serif;
-    font-size: 54px;
+    font-family: "Bebas Neue", "Sora", Arial, sans-serif;
+    font-size: 64px;
     line-height: 1.05;
     margin: 0 0 10px;
     color: var(--white);
@@ -139,28 +314,6 @@ a { color: inherit; text-decoration: none; }
     font-weight: 600;
     white-space: nowrap;
 }
-
-.btn {
-    border: none;
-    padding: 14px 20px;
-    border-radius: 999px;
-    font-weight: 600;
-    cursor: pointer;
-    transition: 0.2s;
-}
-
-.btn-primary {
-    background: var(--blue);
-    color: var(--white);
-}
-
-.btn-outline {
-    background: transparent;
-    color: var(--white);
-    border: 2px solid var(--white);
-}
-
-.btn:hover { transform: translateY(-2px); }
 
 .toggle-group {
     display: inline-flex;
@@ -520,6 +673,7 @@ input {
     .headline h1 { font-size: 42px; }
     .nav { flex-direction: column; gap: 10px; }
     .nav-links { flex-wrap: wrap; justify-content: center; }
+    .nav-actions { flex-wrap: wrap; justify-content: center; }
     .section { padding: 28px 6vw 8px; }
     .carousel-wrap { border-radius: 16px; }
     .singer-card { min-width: 200px; padding: 12px 14px; }
@@ -563,11 +717,6 @@ input {
 
 <script>
 function showLoader(message){
-    try {
-        localStorage.setItem("mashup_in_progress", "1");
-    } catch (e) {
-        // localStorage may be blocked; continue without persistence.
-    }
     if (message) {
         document.getElementById("loader-title").textContent = message;
     }
@@ -579,34 +728,7 @@ function syncLoaderState(){
     if (!loader) {
         return;
     }
-
-    // Check if there's any message on the page (success or error)
-    var hasMessage = document.querySelector(".success") || document.querySelector(".error");
-    
-    // If there's a message, clear the loader state and hide
-    if (hasMessage) {
-        try {
-            localStorage.removeItem("mashup_in_progress");
-        } catch (e) {
-            // Ignore storage errors.
-        }
-        loader.style.display = "none";
-        return;
-    }
-
-    // Only show loader if generation is in progress and no message yet
-    var inProgress = false;
-    try {
-        inProgress = localStorage.getItem("mashup_in_progress") === "1";
-    } catch (e) {
-        inProgress = false;
-    }
-
-    if (inProgress) {
-        loader.style.display = "flex";
-    } else {
-        loader.style.display = "none";
-    }
+    loader.style.display = "none";
 }
 
 window.addEventListener("load", syncLoaderState);
@@ -725,6 +847,33 @@ function startAutoSlide() {
     }, 5000);
 }
 
+function createStream(){
+    fetch("/stream/create", { method: "POST" })
+        .then(function(response){ return response.json(); })
+        .then(function(data){
+            if (data && data.ok && data.room_url) {
+                window.location = data.room_url;
+                return;
+            }
+            alert((data && data.error) ? data.error : "Could not create stream.");
+        })
+        .catch(function(){
+            alert("Could not create stream.");
+        });
+}
+
+function joinStream(){
+    var code = prompt("Enter stream code");
+    if (!code) {
+        return;
+    }
+    code = code.trim().toUpperCase();
+    if (!code) {
+        return;
+    }
+    window.location = "/stream/" + encodeURIComponent(code);
+}
+
 window.addEventListener("load", function() {
     showSlide(currentSlideIndex);
     startAutoSlide();
@@ -738,33 +887,40 @@ window.addEventListener("load", function() {
     <div class="ribbon"></div>
 
     <div class="nav">
-        <div class="logo">AANTRE</div>
+        <div class="logo">
+            <img class="logo-mark" src="/static/logo.png" alt="Aantre logo" onerror="this.style.display='none'">
+            <span class="logo-text">AANTRE</span>
+        </div>
         <div class="nav-links">
-            <a href="/pricing">Pricing</a>
-            <a href="/#generate">Generate</a>
+            <a href="/pricing">Plans</a>
+            <a href="/#generate">Mashup Studio</a>
             <a href="/about">About</a>
+        </div>
+        <div class="nav-actions">
+            <button class="btn btn-primary" type="button" onclick="createStream()">Create Stream</button>
+            <button class="btn btn-outline" type="button" onclick="joinStream()">Join Stream</button>
         </div>
     </div>
 
     <section class="section" id="hero-carousel">
         <div class="image-carousel">
             <div class="carousel-container">
-                <div class="carousel-slide active" style="background: linear-gradient(135deg, #1e90ff 0%, #0d6efd 100%);">
+                <div class="carousel-slide active" style="background: linear-gradient(135deg, #1aa397 0%, #3bd6c6 100%);">
                     <div class="slide-content">
-                        <h2>Premium Multi-Singer Mashups</h2>
-                        <p>Create cinematic mashups with up to 5 singers or songs</p>
+                        <h2>Live Rooms, Zero Friction</h2>
+                        <p>Create a stream code and invite your audience instantly</p>
                     </div>
                 </div>
-                <div class="carousel-slide" style="background: linear-gradient(135deg, #0d6efd 0%, #1e3a8a 100%);">
+                <div class="carousel-slide" style="background: linear-gradient(135deg, #0e2b3b 0%, #1aa397 100%);">
                     <div class="slide-content">
-                        <h2>AI-Powered Audio Mixing</h2>
-                        <p>Advanced EQ, compression & loudness normalization</p>
+                        <h2>Premium Audio + Video</h2>
+                        <p>Pro tuning for crisp sound and smooth playback</p>
                     </div>
                 </div>
-                <div class="carousel-slide" style="background: linear-gradient(135deg, #1e3a8a 0%, #1e90ff 100%);">
+                <div class="carousel-slide" style="background: linear-gradient(135deg, #1a1f2f 0%, #3bd6c6 100%);">
                     <div class="slide-content">
-                        <h2>Instant Email Delivery</h2>
-                        <p>Your mashup delivered directly to your inbox</p>
+                        <h2>Mashup Studio Included</h2>
+                        <p>Generate professional mashups alongside live streams</p>
                     </div>
                 </div>
             </div>
@@ -781,12 +937,12 @@ window.addEventListener("load", function() {
     <section class="section" id="showcase">
         <div class="headline">
             <div>
-                <h1>Craft your favorite singer mashup in minutes.</h1>
-                <p>Aantre V2 brings premium multi-artist mashups with professional-grade audio processing, beat-synced transitions, and instant delivery.</p>
+                <h1>Hostel Se Live, Seedha Dil Tak.</h1>
+                <p>Stream your talent at Thapar with premium live rooms, audience chat, and pro-grade audio/video. Mashup Studio stays built-in for creators.</p>
             </div>
-            <div class="badge">Version 2 - Premium Edition</div>
+            <div class="badge">Version 3 — Live Streaming</div>
         </div>
-        <h2>Listen To Your Favorite Singers</h2>
+        <h2>Stream Your Live Music Experience</h2>
         <div class="carousel-wrap" aria-label="Bollywood singers carousel">
             <div class="carousel-track">
                 <div class="singer-card">
@@ -1130,7 +1286,7 @@ window.addEventListener("load", function() {
     </section>
 
     <section class="section" id="generate">
-        <h2>Generate Your Mashup</h2>
+        <h2>Mashup Studio</h2>
         <div class="form-wrap">
             {% if msg_single %}
             <div class="{{'success' if ok_single else 'error'}}">{{msg_single}}</div>
@@ -1152,7 +1308,7 @@ window.addEventListener("load", function() {
                 <label>Email Address</label>
                 <input name="email" type="email" required placeholder="you@gmail.com">
 
-                <button class="btn btn-primary" type="submit">Generate Mashup and Email</button>
+                <button class="btn btn-primary" type="submit">Generate Mashup</button>
 
                 <div id="loader" class="loader">
                     <div class="loader-message">
@@ -1166,7 +1322,7 @@ window.addEventListener("load", function() {
     </section>
 
     <section class="section" id="generate-multi">
-        <h2>Generate Multi Mashup (V2)</h2>
+        <h2>Premium Mashup Lab</h2>
         <div class="form-wrap">
             {% if msg_multi %}
             <div class="{{'success' if ok_multi else 'error'}}">{{msg_multi}}</div>
@@ -1203,32 +1359,32 @@ window.addEventListener("load", function() {
                 <label>Email Address</label>
                 <input name="email_multi" type="email" required placeholder="you@gmail.com">
 
-                <button class="btn btn-primary" type="submit">Generate Premium Multi Mashup</button>
+                <button class="btn btn-primary" type="submit">Generate Premium Mashup</button>
             </form>
         </div>
     </section>
 
     <section class="section" id="features">
-        <h2>Core Features</h2>
+        <h2>Core Streaming Features</h2>
         <div class="cards">
             <div class="card">
-                <h3>Smart Search</h3>
-                <p>Fetches top tracks by artist for high-quality mashups.</p>
+                <h3>Live Rooms</h3>
+                <p>Create a unique code, invite viewers, and go live instantly.</p>
             </div>
             <div class="card">
-                <h3>Clean Stitch</h3>
-                <p>Seamless merges that preserve clarity and punch.</p>
+                <h3>Audience Chat</h3>
+                <p>Real-time chat keeps your community close to the performance.</p>
             </div>
             <div class="card">
-                <h3>Instant Delivery</h3>
-                <p>Zip and email workflow from a single click.</p>
+                <h3>Premium Playback</h3>
+                <p>High-fidelity audio/video tuning for smooth, crisp streams.</p>
             </div>
         </div>
     </section>
 
     <section class="section" id="coming-soon">
-        <h2>Coming Soon</h2>
-        <div class="coming-soon">Thapar creators will be able to sing, post, and showcase their own mashups inside Aantre.</div>
+        <h2>Creator Hardware (Coming Soon)</h2>
+        <div class="coming-soon">Pair Aantre ingestion devices via QR and broadcast studio-grade audio from your room.</div>
     </section>
 
     <footer class="footer">
@@ -1262,34 +1418,103 @@ PRICING_HTML = """
 <!DOCTYPE html>
 <html>
 <head>
-<title>Aantre — Pricing</title>
+<title>Aantre — Plans</title>
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;700&family=Space+Grotesk:wght@500;600&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Sora:wght@400;500;600;700&display=swap" rel="stylesheet">
 
 <style>
 :root {
-    --black: #060a0f;
-    --black-2: #0d1117;
-    --black-3: #161b22;
-    --blue: #1e90ff;
-    --blue-2: #0d6efd;
-    --blue-3: #58a6ff;
+    --black: #05060a;
+    --black-2: #0b0e16;
+    --black-3: #101625;
+    --cyan: #3bd6c6;
+    --cyan-2: #1aa397;
+    --amber: #f1c27b;
     --white: #ffffff;
-    --muted: #8b949e;
+    --muted: #8f98ab;
+    --blue: var(--cyan);
+    --blue-2: var(--cyan-2);
+    --blue-3: #7cf2e5;
 }
 
 * { box-sizing: border-box; }
 
 body {
     margin: 0;
-    font-family: "DM Sans", Arial, sans-serif;
+    font-family: "Sora", Arial, sans-serif;
     color: var(--white);
-    background: radial-gradient(1200px 600px at 20% -10%, #0a1929 0%, transparent 60%),
-                radial-gradient(900px 500px at 90% 0%, #0d1520 0%, transparent 60%),
-                var(--black);
+    background: radial-gradient(1200px 600px at 20% -10%, #0f1a2a 0%, transparent 60%),
+                radial-gradient(900px 500px at 90% 0%, #0d1b22 0%, transparent 60%),
+                linear-gradient(180deg, #06080f 0%, #05060a 60%);
 }
 
 a { color: inherit; text-decoration: none; }
+
+.btn {
+    border: none;
+    padding: 12px 18px;
+    border-radius: 999px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: 0.2s;
+}
+
+.btn-primary {
+    background: linear-gradient(135deg, var(--blue), var(--blue-2));
+    color: #041012;
+}
+
+.btn-outline {
+    background: transparent;
+    color: var(--white);
+    border: 2px solid rgba(255, 255, 255, 0.6);
+}
+
+.btn:hover { transform: translateY(-2px); }
+
+.btn {
+    border: none;
+    padding: 12px 18px;
+    border-radius: 999px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: 0.2s;
+}
+
+.btn-primary {
+    background: linear-gradient(135deg, var(--blue), var(--blue-2));
+    color: #041012;
+}
+
+.btn-outline {
+    background: transparent;
+    color: var(--white);
+    border: 2px solid rgba(255, 255, 255, 0.6);
+}
+
+.btn:hover { transform: translateY(-2px); }
+
+.btn {
+    border: none;
+    padding: 12px 18px;
+    border-radius: 999px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: 0.2s;
+}
+
+.btn-primary {
+    background: linear-gradient(135deg, var(--blue), var(--blue-2));
+    color: #041012;
+}
+
+.btn-outline {
+    background: transparent;
+    color: var(--white);
+    border: 2px solid rgba(255, 255, 255, 0.6);
+}
+
+.btn:hover { transform: translateY(-2px); }
 
 .page {
     min-height: 100vh;
@@ -1322,10 +1547,24 @@ a { color: inherit; text-decoration: none; }
 }
 
 .logo {
-    font-family: "Space Grotesk", Arial, sans-serif;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-family: "Bebas Neue", "Sora", Arial, sans-serif;
     font-size: 26px;
     letter-spacing: 1px;
     color: var(--white);
+}
+
+.logo-mark {
+    width: 34px;
+    height: 34px;
+    object-fit: contain;
+    display: block;
+}
+
+.logo-text {
+    letter-spacing: 1.2px;
 }
 
 .nav-links {
@@ -1391,6 +1630,7 @@ a { color: inherit; text-decoration: none; }
 @media (max-width: 640px) {
     .nav { flex-direction: column; gap: 10px; }
     .nav-links { flex-wrap: wrap; justify-content: center; }
+    .nav-actions { flex-wrap: wrap; justify-content: center; }
     .section h1 { font-size: 40px; }
 }
 </style>
@@ -1399,17 +1639,24 @@ a { color: inherit; text-decoration: none; }
 <div class="page">
     <div class="ribbon"></div>
     <div class="nav">
-        <div class="logo">AANTRE</div>
+        <div class="logo">
+            <img class="logo-mark" src="/static/logo.png" alt="Aantre logo" onerror="this.style.display='none'">
+            <span class="logo-text">AANTRE</span>
+        </div>
         <div class="nav-links">
-            <a href="/pricing">Pricing</a>
-            <a href="/#generate">Generate</a>
+            <a href="/pricing">Plans</a>
+            <a href="/#generate">Mashup Studio</a>
             <a href="/about">About</a>
+        </div>
+        <div class="nav-actions">
+            <button class="btn btn-primary" type="button" onclick="createStream()">Create Stream</button>
+            <button class="btn btn-outline" type="button" onclick="joinStream()">Join Stream</button>
         </div>
     </div>
 
     <section class="section">
-        <h1>Pricing</h1>
-        <p>Simple, early-access pricing while we build the full creator community.</p>
+        <h1>Plans</h1>
+        <p>Creator-first pricing while we build the live music community at Thapar.</p>
         
         <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 24px; max-width: 1100px; margin: 0 auto;">
             <div class="pricing-card">
@@ -1461,6 +1708,34 @@ a { color: inherit; text-decoration: none; }
         </div>
     </footer>
 </div>
+<script>
+function createStream(){
+    fetch("/stream/create", { method: "POST" })
+        .then(function(response){ return response.json(); })
+        .then(function(data){
+            if (data && data.ok && data.room_url) {
+                window.location = data.room_url;
+                return;
+            }
+            alert((data && data.error) ? data.error : "Could not create stream.");
+        })
+        .catch(function(){
+            alert("Could not create stream.");
+        });
+}
+
+function joinStream(){
+    var code = prompt("Enter stream code");
+    if (!code) {
+        return;
+    }
+    code = code.trim().toUpperCase();
+    if (!code) {
+        return;
+    }
+    window.location = "/stream/" + encodeURIComponent(code);
+}
+</script>
 </body>
 </html>
 """
@@ -1469,34 +1744,81 @@ ABOUT_HTML = """
 <!DOCTYPE html>
 <html>
 <head>
-<title>Aantre — About</title>
+<title>Aantre — About Aantre Live</title>
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;700&family=Space+Grotesk:wght@500;600&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Sora:wght@400;500;600;700&display=swap" rel="stylesheet">
 
 <style>
 :root {
-    --black: #060a0f;
-    --black-2: #0d1117;
-    --black-3: #161b22;
-    --blue: #1e90ff;
-    --blue-2: #0d6efd;
-    --blue-3: #58a6ff;
+    --black: #05060a;
+    --black-2: #0b0e16;
+    --black-3: #101625;
+    --cyan: #3bd6c6;
+    --cyan-2: #1aa397;
+    --amber: #f1c27b;
     --white: #ffffff;
-    --muted: #8b949e;
+    --muted: #8f98ab;
+    --blue: var(--cyan);
+    --blue-2: var(--cyan-2);
+    --blue-3: #7cf2e5;
 }
 
 * { box-sizing: border-box; }
 
 body {
     margin: 0;
-    font-family: "DM Sans", Arial, sans-serif;
+    font-family: "Sora", Arial, sans-serif;
     color: var(--white);
-    background: radial-gradient(1200px 600px at 20% -10%, #0a1929 0%, transparent 60%),
-                radial-gradient(900px 500px at 90% 0%, #0d1520 0%, transparent 60%),
-                var(--black);
+    background: radial-gradient(1200px 600px at 20% -10%, #0f1a2a 0%, transparent 60%),
+                radial-gradient(900px 500px at 90% 0%, #0d1b22 0%, transparent 60%),
+                linear-gradient(180deg, #06080f 0%, #05060a 60%);
 }
 
 a { color: inherit; text-decoration: none; }
+
+.btn {
+    border: none;
+    padding: 12px 18px;
+    border-radius: 999px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: 0.2s;
+}
+
+.btn-primary {
+    background: linear-gradient(135deg, var(--blue), var(--blue-2));
+    color: #041012;
+}
+
+.btn-outline {
+    background: transparent;
+    color: var(--white);
+    border: 2px solid rgba(255, 255, 255, 0.6);
+}
+
+.btn:hover { transform: translateY(-2px); }
+
+.btn {
+    border: none;
+    padding: 12px 18px;
+    border-radius: 999px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: 0.2s;
+}
+
+.btn-primary {
+    background: linear-gradient(135deg, var(--blue), var(--blue-2));
+    color: #041012;
+}
+
+.btn-outline {
+    background: transparent;
+    color: var(--white);
+    border: 2px solid rgba(255, 255, 255, 0.6);
+}
+
+.btn:hover { transform: translateY(-2px); }
 
 .page {
     min-height: 100vh;
@@ -1529,10 +1851,24 @@ a { color: inherit; text-decoration: none; }
 }
 
 .logo {
-    font-family: "Space Grotesk", Arial, sans-serif;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-family: "Bebas Neue", "Sora", Arial, sans-serif;
     font-size: 26px;
     letter-spacing: 1px;
     color: var(--white);
+}
+
+.logo-mark {
+    width: 34px;
+    height: 34px;
+    object-fit: contain;
+    display: block;
+}
+
+.logo-text {
+    letter-spacing: 1.2px;
 }
 
 .nav-links {
@@ -1592,6 +1928,7 @@ a { color: inherit; text-decoration: none; }
 @media (max-width: 640px) {
     .nav { flex-direction: column; gap: 10px; }
     .nav-links { flex-wrap: wrap; justify-content: center; }
+    .nav-actions { flex-wrap: wrap; justify-content: center; }
     .section h1 { font-size: 40px; }
 }
 </style>
@@ -1600,21 +1937,37 @@ a { color: inherit; text-decoration: none; }
 <div class="page">
     <div class="ribbon"></div>
     <div class="nav">
-        <div class="logo">AANTRE</div>
+        <div class="logo">
+            <img class="logo-mark" src="/static/logo.png" alt="Aantre logo" onerror="this.style.display='none'">
+            <span class="logo-text">AANTRE</span>
+        </div>
         <div class="nav-links">
-            <a href="/pricing">Pricing</a>
-            <a href="/#generate">Generate</a>
+            <a href="/pricing">Plans</a>
+            <a href="/#generate">Mashup Studio</a>
             <a href="/about">About</a>
+        </div>
+        <div class="nav-actions">
+            <button class="btn btn-primary" type="button" onclick="createStream()">Create Stream</button>
+            <button class="btn btn-outline" type="button" onclick="joinStream()">Join Stream</button>
         </div>
     </div>
 
     <section class="section">
-        <h1>About</h1>
+        <h1>About Aantre Live</h1>
         <div class="info-card">
             <p>Hi, I am Nihar Sharma. I am building Aantre as a software experience that helps people generate mashups quickly and cleanly.</p>
             <p>If you are interested in building your passion, let us team up and create something meaningful together.</p>
             <p>Connect on LinkedIn: <a href="https://www.linkedin.com/in/itsniharsharma/" target="_blank" rel="noopener" style="color: var(--blue-3); text-decoration: underline;">linkedin.com/in/itsniharsharma</a></p>
             
+            <h3 style="margin-top: 32px;">Version 3 Features (Streaming)</h3>
+            <ul>
+                <li><strong>Live Rooms:</strong> Create a stream room with a unique code and invite anyone to join</li>
+                <li><strong>Audience Chat:</strong> Viewers can chat live while watching the host stream</li>
+                <li><strong>Host Broadcast Mode:</strong> Only the host streams audio/video for clean, stable sessions</li>
+                <li><strong>Aantre Ingestion:</strong> Hardware or phone sources can be paired via QR for direct capture</li>
+                <li><strong>Optimized Playback:</strong> Premium audio/video tuning for crisp, low-latency playback</li>
+            </ul>
+
             <h3 style="margin-top: 32px;">Version 2 Features (Premium)</h3>
             <ul>
                 <li><strong>Multi-Mashup Mode:</strong> Blend up to 5 singers or songs in one track</li>
@@ -1640,6 +1993,1036 @@ a { color: inherit; text-decoration: none; }
         </div>
     </footer>
 </div>
+<script>
+function createStream(){
+    fetch("/stream/create", { method: "POST" })
+        .then(function(response){ return response.json(); })
+        .then(function(data){
+            if (data && data.ok && data.room_url) {
+                window.location = data.room_url;
+                return;
+            }
+            alert((data && data.error) ? data.error : "Could not create stream.");
+        })
+        .catch(function(){
+            alert("Could not create stream.");
+        });
+}
+
+function joinStream(){
+    var code = prompt("Enter stream code");
+    if (!code) {
+        return;
+    }
+    code = code.trim().toUpperCase();
+    if (!code) {
+        return;
+    }
+    window.location = "/stream/" + encodeURIComponent(code);
+}
+</script>
+</body>
+</html>
+"""
+
+def normalize_stream_code(code: str) -> str:
+    if not code:
+        return ""
+    return "".join([c for c in code.strip().upper() if c.isalnum()])
+
+
+def ensure_stream_indexes() -> None:
+    global _STREAM_INDEX_READY
+    if _STREAM_INDEX_READY:
+        return
+    if not mongo_handler.connected or not mongo_handler.db:
+        return
+    try:
+        coll = mongo_handler.db[STREAM_COLLECTION]
+        coll.create_index("code", unique=True)
+        coll.create_index("created_at")
+        _STREAM_INDEX_READY = True
+    except Exception:
+        _STREAM_INDEX_READY = False
+
+
+def create_stream_room() -> str:
+    ensure_stream_indexes()
+    alphabet = string.ascii_uppercase + string.digits
+
+    for _ in range(15):
+        code = "".join(secrets.choice(alphabet) for _ in range(STREAM_CODE_LEN))
+
+        if mongo_handler.connected and mongo_handler.db:
+            try:
+                mongo_handler.db[STREAM_COLLECTION].insert_one({
+                    "code": code,
+                    "created_at": datetime.utcnow(),
+                    "last_active": datetime.utcnow(),
+                    "active": True,
+                    "max_size": STREAM_ROOM_MAX,
+                })
+                return code
+            except Exception as e:
+                if "duplicate" in str(e).lower():
+                    continue
+                raise
+        else:
+            if code in STREAM_ROOMS_LOCAL:
+                continue
+            STREAM_ROOMS_LOCAL[code] = {
+                "code": code,
+                "created_at": datetime.utcnow(),
+                "last_active": datetime.utcnow(),
+                "active": True,
+                "max_size": STREAM_ROOM_MAX,
+            }
+            return code
+
+    raise RuntimeError("Unable to create a unique stream code.")
+
+
+def get_stream_room(code: str):
+    normalized = normalize_stream_code(code)
+    if not normalized:
+        return None
+    if mongo_handler.connected and mongo_handler.db:
+        return mongo_handler.db[STREAM_COLLECTION].find_one({"code": normalized, "active": True})
+    room = STREAM_ROOMS_LOCAL.get(normalized)
+    return room if room and room.get("active") else None
+
+
+def update_stream_status(code: str, active: bool) -> None:
+    normalized = normalize_stream_code(code)
+    if not normalized:
+        return
+    if mongo_handler.connected and mongo_handler.db:
+        mongo_handler.db[STREAM_COLLECTION].update_one(
+            {"code": normalized},
+            {"$set": {"active": active, "last_active": datetime.utcnow()}},
+        )
+    elif normalized in STREAM_ROOMS_LOCAL:
+        STREAM_ROOMS_LOCAL[normalized]["active"] = active
+        STREAM_ROOMS_LOCAL[normalized]["last_active"] = datetime.utcnow()
+
+
+def touch_stream_room(code: str) -> None:
+    normalized = normalize_stream_code(code)
+    if not normalized:
+        return
+    if mongo_handler.connected and mongo_handler.db:
+        mongo_handler.db[STREAM_COLLECTION].update_one(
+            {"code": normalized},
+            {"$set": {"last_active": datetime.utcnow()}},
+        )
+    elif normalized in STREAM_ROOMS_LOCAL:
+        STREAM_ROOMS_LOCAL[normalized]["last_active"] = datetime.utcnow()
+
+STREAM_HTML = """
+<!DOCTYPE html>
+<html>
+<head>
+<title>Aantre — Live Stream</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Sora:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+<style>
+:root {
+    --black: #05060a;
+    --black-2: #0b0e16;
+    --black-3: #101625;
+    --cyan: #3bd6c6;
+    --cyan-2: #1aa397;
+    --amber: #f1c27b;
+    --white: #ffffff;
+    --muted: #8f98ab;
+    --blue: var(--cyan);
+    --blue-2: var(--cyan-2);
+    --blue-3: #7cf2e5;
+}
+
+* { box-sizing: border-box; }
+
+body {
+    margin: 0;
+    font-family: "Sora", Arial, sans-serif;
+    color: var(--white);
+    background: radial-gradient(1200px 600px at 20% -10%, #0f1a2a 0%, transparent 60%),
+                radial-gradient(900px 500px at 90% 0%, #0d1b22 0%, transparent 60%),
+                linear-gradient(180deg, #06080f 0%, #05060a 60%);
+}
+
+a { color: inherit; text-decoration: none; }
+
+.btn {
+    border: none;
+    padding: 10px 16px;
+    border-radius: 999px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: 0.2s;
+}
+
+.btn-primary {
+    background: var(--blue);
+    color: var(--white);
+}
+
+.btn-outline {
+    background: transparent;
+    color: var(--white);
+    border: 2px solid var(--white);
+}
+
+.btn-ghost {
+    background: transparent;
+    border: 1px solid #2a2a2a;
+    color: var(--white);
+}
+
+.btn:hover { transform: translateY(-2px); }
+
+.page {
+    min-height: 100vh;
+    position: relative;
+    overflow-x: hidden;
+}
+
+.ribbon {
+    position: absolute;
+    top: -140px;
+    right: -140px;
+    width: 360px;
+    height: 360px;
+    background: radial-gradient(circle at 30% 30%, var(--blue), var(--blue-2));
+    border-radius: 50%;
+    opacity: 0.18;
+}
+
+.nav {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 22px 7vw;
+    position: sticky;
+    top: 0;
+    background: rgba(11, 11, 11, 0.78);
+    backdrop-filter: blur(10px);
+    border-bottom: 1px solid #232323;
+    z-index: 10;
+}
+
+.logo {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-family: "Bebas Neue", "Sora", Arial, sans-serif;
+    font-size: 26px;
+    letter-spacing: 1px;
+    color: var(--white);
+}
+
+.logo-mark {
+    width: 34px;
+    height: 34px;
+    object-fit: contain;
+    display: block;
+}
+
+.logo-text {
+    letter-spacing: 1.2px;
+}
+
+.nav-links {
+    display: flex;
+    gap: 20px;
+    font-weight: 600;
+    color: var(--muted);
+}
+
+.nav-links a {
+    padding: 8px 12px;
+    border-radius: 999px;
+    transition: 0.2s;
+}
+
+.nav-links a:hover {
+    background: var(--black-3);
+    color: var(--white);
+}
+
+.nav-actions {
+    display: flex;
+    gap: 10px;
+    align-items: center;
+}
+
+.nav-actions .btn {
+    padding: 10px 16px;
+    font-size: 14px;
+}
+
+.section {
+    padding: 40px 7vw 20px;
+}
+
+.stream-header {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: space-between;
+    gap: 16px;
+    margin-bottom: 20px;
+}
+
+.stream-header h1 {
+    margin: 0 0 6px;
+    font-family: "Space Grotesk", Arial, sans-serif;
+    font-size: 36px;
+}
+
+.stream-header p {
+    margin: 0;
+    color: var(--muted);
+}
+
+.stream-meta {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+}
+
+.stream-grid {
+    display: grid;
+    grid-template-columns: 2fr 1fr;
+    gap: 18px;
+    height: calc(100vh - 140px);
+}
+
+.video-panel,
+.chat-panel,
+.stream-cta,
+.stream-landing,
+.alert {
+    background: var(--black-2);
+    border: 1px solid #262626;
+    border-radius: 18px;
+    padding: 20px;
+    box-shadow: 0 10px 26px rgba(0, 0, 0, 0.35);
+}
+
+.video-panel {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+}
+
+.alert {
+    color: var(--white);
+    background: rgba(30, 144, 255, 0.12);
+    margin-bottom: 16px;
+}
+
+.video-grid {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 12px;
+    flex: 1;
+    min-height: 0;
+}
+
+.video-card {
+    background: var(--black-3);
+    border-radius: 14px;
+    border: 1px solid #2a2a2a;
+    overflow: hidden;
+    position: relative;
+}
+
+.video-card video {
+    width: 100%;
+    height: 220px;
+    object-fit: cover;
+    background: #0b0f14;
+}
+
+.video-card.feature {
+    grid-column: 1 / -1;
+    height: 100%;
+    min-height: 420px;
+}
+
+.video-card.feature video {
+    height: 100%;
+}
+
+.video-label {
+    position: absolute;
+    left: 10px;
+    bottom: 10px;
+    padding: 6px 10px;
+    border-radius: 999px;
+    background: rgba(0, 0, 0, 0.6);
+    font-size: 12px;
+}
+
+.controls {
+    position: absolute;
+    top: 16px;
+    left: 50%;
+    transform: translateX(-50%);
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    z-index: 2;
+    background: rgba(6, 10, 15, 0.7);
+    padding: 8px 12px;
+    border-radius: 999px;
+    border: 1px solid #2a2a2a;
+}
+
+.status {
+    margin-top: 12px;
+    color: var(--muted);
+    font-size: 13px;
+}
+
+.chat-panel h3 {
+    margin: 0 0 12px;
+}
+
+.chat-panel {
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+}
+
+.chat-messages {
+    flex: 1;
+    min-height: 0;
+    overflow-y: auto;
+    background: var(--black-3);
+    border-radius: 12px;
+    padding: 12px;
+    border: 1px solid #2a2a2a;
+    margin-bottom: 12px;
+}
+
+.chat-message {
+    margin-bottom: 10px;
+    line-height: 1.4;
+    color: var(--white);
+    font-size: 14px;
+}
+
+.chat-message span {
+    color: var(--muted);
+    font-size: 12px;
+    margin-right: 6px;
+}
+
+.chat-input {
+    display: flex;
+    gap: 10px;
+}
+
+.chat-input input {
+    flex: 1;
+    padding: 12px;
+    border-radius: 12px;
+    border: 1px solid #2a2a2a;
+    background: var(--black-3);
+    color: var(--white);
+}
+
+.stream-landing h2 {
+    margin-top: 0;
+}
+
+.stream-landing p {
+    color: var(--muted);
+}
+
+.stream-cta {
+    display: flex;
+    gap: 12px;
+    align-items: center;
+    justify-content: flex-start;
+}
+
+@media (max-width: 980px) {
+    .stream-grid { grid-template-columns: 1fr; height: auto; }
+    .controls { position: static; transform: none; justify-content: center; margin-bottom: 12px; }
+}
+
+@media (max-width: 640px) {
+    .nav { flex-direction: column; gap: 10px; }
+    .nav-links { flex-wrap: wrap; justify-content: center; }
+    .nav-actions { flex-wrap: wrap; justify-content: center; }
+    .chat-input { flex-direction: column; }
+}
+</style>
+</head>
+<body>
+<div class="page">
+    <div class="ribbon"></div>
+    <div class="nav">
+        <div class="logo">
+            <img class="logo-mark" src="/static/logo.png" alt="Aantre logo" onerror="this.style.display='none'">
+            <span class="logo-text">AANTRE</span>
+        </div>
+        <div class="nav-links">
+            <a href="/pricing">Plans</a>
+            <a href="/#generate">Mashup Studio</a>
+            <a href="/about">About</a>
+        </div>
+        <div class="nav-actions">
+            <button class="btn btn-primary" type="button" onclick="createStream()">Create Stream</button>
+            <button class="btn btn-outline" type="button" onclick="joinStream()">Join Stream</button>
+        </div>
+    </div>
+
+    <section class="section">
+        {% if room_error %}
+        <div class="alert">{{ room_error }}</div>
+        <div class="stream-cta">
+            <button class="btn btn-primary" type="button" onclick="createStream()">Create Stream</button>
+            <button class="btn btn-outline" type="button" onclick="joinStream()">Join Stream</button>
+        </div>
+        {% elif room_code %}
+        <div class="stream-header">
+            <div>
+                <h1>Live Stream Room</h1>
+                <p>Share this code: <strong id="room-code">{{ room_code }}</strong></p>
+            </div>
+            <div class="stream-meta">
+                <span><strong id="viewer-count">1</strong> viewers</span>
+                <button class="btn btn-ghost" type="button" onclick="copyCode()">Copy Code</button>
+                <button class="btn btn-outline" type="button" onclick="leaveRoom()">Leave</button>
+            </div>
+        </div>
+        <div class="stream-grid">
+            <div class="video-panel">
+                <div class="video-grid" id="video-grid">
+                    <div class="video-card feature" id="local-card">
+                        <video id="local-video" autoplay playsinline muted></video>
+                        <div class="video-label" id="local-label">Host</div>
+                    </div>
+                </div>
+                <div class="controls">
+                    <button class="btn btn-ghost" type="button" id="enable-audio">Enable Audio</button>
+                    <button class="btn btn-ghost" type="button" id="toggle-audio">Mute</button>
+                    <button class="btn btn-ghost" type="button" id="toggle-video">Disable Video</button>
+                    <button class="btn btn-primary" type="button" id="start-media">Start Camera</button>
+                </div>
+                <div class="status" id="status"></div>
+            </div>
+            <div class="chat-panel">
+                <h3>Live Chat</h3>
+                <div class="chat-messages" id="chat-messages"></div>
+                <div class="chat-input">
+                    <input id="chat-input" placeholder="Write a message" maxlength="500">
+                    <button class="btn btn-primary" type="button" id="chat-send">Send</button>
+                </div>
+            </div>
+        </div>
+        {% else %}
+        <div class="stream-landing">
+            <h2>Go Live with Aantre</h2>
+            <p>Create a stream to get a unique code, or join a stream using a code shared by the host.</p>
+            <div class="stream-cta">
+                <button class="btn btn-primary" type="button" onclick="createStream()">Create Stream</button>
+                <button class="btn btn-outline" type="button" onclick="joinStream()">Join Stream</button>
+            </div>
+        </div>
+        {% endif %}
+    </section>
+</div>
+
+<script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
+<script>
+var ROOM_CODE = "{{ room_code or '' }}";
+
+function createStream(){
+    fetch("/stream/create", { method: "POST" })
+        .then(function(response){ return response.json(); })
+        .then(function(data){
+            if (data && data.ok && data.room_url) {
+                window.location = data.room_url;
+                return;
+            }
+            alert((data && data.error) ? data.error : "Could not create stream.");
+        })
+        .catch(function(){
+            alert("Could not create stream.");
+        });
+}
+
+function joinStream(){
+    var code = prompt("Enter stream code");
+    if (!code) {
+        return;
+    }
+    code = code.trim().toUpperCase();
+    if (!code) {
+        return;
+    }
+    window.location = "/stream/" + encodeURIComponent(code);
+}
+
+function copyCode(){
+    var codeEl = document.getElementById("room-code");
+    if (!codeEl) {
+        return;
+    }
+    var text = codeEl.textContent || "";
+    if (!text) {
+        return;
+    }
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(text);
+        return;
+    }
+    alert("Copy this code: " + text);
+}
+
+function leaveRoom(){
+    window.location = "/stream";
+}
+
+if (ROOM_CODE) {
+    var socket = io({ transports: ["websocket", "polling"] });
+    var localStream = null;
+    var peers = {};
+    var displayName = "";
+    var joined = false;
+    var isHost = false;
+
+    function setStatus(message) {
+        var statusEl = document.getElementById("status");
+        if (statusEl) {
+            statusEl.textContent = message || "";
+        }
+    }
+
+    function ensureName() {
+        if (displayName) {
+            return;
+        }
+        var name = prompt("Your display name");
+        name = (name || "Guest").trim();
+        if (!name) {
+            name = "Guest";
+        }
+        displayName = name.substring(0, 32);
+    }
+
+    function updateViewerCount(count) {
+        var countEl = document.getElementById("viewer-count");
+        if (countEl && typeof count === "number") {
+            countEl.textContent = String(count);
+        }
+    }
+
+    function updateRoleUI() {
+        var startBtn = document.getElementById("start-media");
+        var audioBtn = document.getElementById("toggle-audio");
+        var videoBtn = document.getElementById("toggle-video");
+        var enableAudioBtn = document.getElementById("enable-audio");
+        var localCard = document.getElementById("local-card");
+        var localLabel = document.getElementById("local-label");
+
+        if (isHost) {
+            if (enableAudioBtn) { enableAudioBtn.style.display = "none"; }
+            if (startBtn) { startBtn.style.display = "inline-flex"; }
+            if (audioBtn) { audioBtn.style.display = "inline-flex"; }
+            if (videoBtn) { videoBtn.style.display = "inline-flex"; }
+            if (localCard) { localCard.style.display = "block"; }
+            if (localLabel) { localLabel.textContent = "Host"; }
+        } else {
+            if (enableAudioBtn) { enableAudioBtn.style.display = "inline-flex"; }
+            if (startBtn) { startBtn.style.display = "none"; }
+            if (audioBtn) { audioBtn.style.display = "none"; }
+            if (videoBtn) { videoBtn.style.display = "none"; }
+            if (localCard) { localCard.style.display = "none"; }
+        }
+    }
+
+    function enableAudienceAudio() {
+        var videos = document.querySelectorAll("#video-grid video");
+        videos.forEach(function(video){
+            video.muted = false;
+            var playPromise = video.play();
+            if (playPromise && typeof playPromise.catch === "function") {
+                playPromise.catch(function(){
+                    // Autoplay may still be blocked.
+                });
+            }
+        });
+    }
+
+    function attachRemote(peerId, stream) {
+        var grid = document.getElementById("video-grid");
+        if (!grid) {
+            return;
+        }
+        var cardId = "peer-" + peerId;
+        var existing = document.getElementById(cardId);
+        if (existing) {
+            var videoEl = existing.querySelector("video");
+            if (videoEl) {
+                videoEl.srcObject = stream;
+            }
+            return;
+        }
+        var card = document.createElement("div");
+        card.className = "video-card";
+        if (!isHost && !grid.querySelector(".video-card.feature")) {
+            card.className += " feature";
+        }
+        card.id = cardId;
+
+        var video = document.createElement("video");
+        video.autoplay = true;
+        video.playsInline = true;
+        video.muted = !isHost;
+        video.srcObject = stream;
+        var playPromise = video.play();
+        if (playPromise && typeof playPromise.catch === "function") {
+            playPromise.catch(function(){
+                // Autoplay may be blocked; user can enable audio manually.
+            });
+        }
+
+        var label = document.createElement("div");
+        label.className = "video-label";
+        label.textContent = isHost ? "Viewer" : "Host";
+
+        card.appendChild(video);
+        card.appendChild(label);
+        grid.appendChild(card);
+    }
+
+    function removePeer(peerId) {
+        if (peers[peerId]) {
+            peers[peerId].close();
+            delete peers[peerId];
+        }
+        var card = document.getElementById("peer-" + peerId);
+        if (card && card.parentNode) {
+            card.parentNode.removeChild(card);
+        }
+    }
+
+    function createPeer(peerId) {
+        var pc = new RTCPeerConnection({
+            iceServers: [{ urls: "stun:stun.l.google.com:19302" }]
+        });
+        peers[peerId] = pc;
+
+        if (isHost) {
+            if (localStream) {
+                localStream.getTracks().forEach(function(track){
+                    pc.addTrack(track, localStream);
+                });
+            } else {
+                pc.addTransceiver("video", { direction: "sendonly" });
+                pc.addTransceiver("audio", { direction: "sendonly" });
+            }
+        } else {
+            pc.addTransceiver("video", { direction: "recvonly" });
+            pc.addTransceiver("audio", { direction: "recvonly" });
+
+            pc.ontrack = function(event){
+                if (event.streams && event.streams[0]) {
+                    attachRemote(peerId, event.streams[0]);
+                }
+            };
+        }
+
+        pc.onicecandidate = function(event){
+            if (event.candidate) {
+                socket.emit("webrtc-ice", {
+                    target: peerId,
+                    candidate: event.candidate
+                });
+            }
+        };
+
+        return pc;
+    }
+
+    function makeOffer(peerId) {
+        if (!isHost) {
+            return;
+        }
+        var pc = peers[peerId] || createPeer(peerId);
+        pc.createOffer()
+            .then(function(offer){
+                return pc.setLocalDescription(offer);
+            })
+            .then(function(){
+                socket.emit("webrtc-offer", {
+                    target: peerId,
+                    sdp: pc.localDescription
+                });
+            })
+            .catch(function(){
+                setStatus("Could not connect to a viewer.");
+            });
+    }
+
+    function startLocalMedia() {
+        if (!isHost) {
+            return Promise.resolve(null);
+        }
+        if (localStream) {
+            return Promise.resolve(localStream);
+        }
+        return navigator.mediaDevices.getUserMedia({
+            video: {
+                width: { ideal: 1920 },
+                height: { ideal: 1080 },
+                frameRate: { ideal: 30, max: 30 }
+            },
+            audio: {
+                echoCancellation: true,
+                noiseSuppression: true,
+                autoGainControl: true
+            }
+        })
+            .then(function(stream){
+                localStream = stream;
+                stream.getVideoTracks().forEach(function(track){
+                    try {
+                        track.contentHint = "detail";
+                    } catch (e) {
+                        // Ignore unsupported hint.
+                    }
+                });
+                stream.getAudioTracks().forEach(function(track){
+                    try {
+                        track.contentHint = "music";
+                    } catch (e) {
+                        // Ignore unsupported hint.
+                    }
+                });
+                var localVideo = document.getElementById("local-video");
+                if (localVideo) {
+                    localVideo.srcObject = stream;
+                }
+                Object.keys(peers).forEach(function(peerId){
+                    stream.getTracks().forEach(function(track){
+                        var sender = peers[peerId].addTrack(track, stream);
+                        var params = sender.getParameters();
+                        if (!params.encodings) {
+                            params.encodings = [{}];
+                        }
+                        if (track.kind === "video") {
+                            params.encodings[0].maxBitrate = 3500000;
+                            params.degradationPreference = "maintain-framerate";
+                        }
+                        if (track.kind === "audio") {
+                            params.encodings[0].maxBitrate = 128000;
+                        }
+                        sender.setParameters(params).catch(function(){
+                            // Ignore bitrate cap failures.
+                        });
+                    });
+                    makeOffer(peerId);
+                });
+                return stream;
+            })
+            .catch(function(){
+                setStatus("Camera or mic blocked. You can still watch.");
+                return null;
+            });
+    }
+
+    function addChatMessage(data) {
+        var list = document.getElementById("chat-messages");
+        if (!list) {
+            return;
+        }
+        var row = document.createElement("div");
+        row.className = "chat-message";
+        var time = data.time ? new Date(data.time).toLocaleTimeString() : "";
+        var name = data.name || "Guest";
+        var text = data.message || "";
+        var stamp = document.createElement("span");
+        stamp.textContent = time ? ("[" + time + "]") : "";
+        row.appendChild(stamp);
+        row.appendChild(document.createTextNode(" " + name + ": " + text));
+        list.appendChild(row);
+        list.scrollTop = list.scrollHeight;
+    }
+
+    socket.on("connect", function(){
+        ensureName();
+        socket.emit("join-room", { code: ROOM_CODE, name: displayName });
+    });
+
+    socket.on("room-joined", function(payload){
+        joined = true;
+        isHost = payload && payload.role === "host";
+        updateViewerCount(payload.count || 1);
+        setStatus("Connected to room " + payload.code);
+        updateRoleUI();
+        if (isHost) {
+            startLocalMedia();
+        } else {
+            setStatus("You joined as a viewer. Tap Enable Audio to hear the host.");
+        }
+    });
+
+    socket.on("join-error", function(payload){
+        alert(payload && payload.error ? payload.error : "Could not join the room.");
+        window.location = "/stream";
+    });
+
+    socket.on("peer-joined", function(payload){
+        updateViewerCount(payload.count || 1);
+        if (payload && payload.id) {
+            makeOffer(payload.id);
+        }
+    });
+
+    socket.on("peer-left", function(payload){
+        updateViewerCount(payload.count || 1);
+        if (payload && payload.id) {
+            removePeer(payload.id);
+        }
+    });
+
+    socket.on("host-ended", function(){
+        alert("The host ended the stream.");
+        window.location = "/stream";
+    });
+
+    socket.on("webrtc-offer", function(payload){
+        var peerId = payload && payload.from;
+        if (!peerId || !payload.sdp) {
+            return;
+        }
+        var pc = peers[peerId] || createPeer(peerId);
+        pc.setRemoteDescription(new RTCSessionDescription(payload.sdp))
+            .then(function(){
+                return pc.createAnswer();
+            })
+            .then(function(answer){
+                return pc.setLocalDescription(answer);
+            })
+            .then(function(){
+                socket.emit("webrtc-answer", {
+                    target: peerId,
+                    sdp: pc.localDescription
+                });
+            })
+            .catch(function(){
+                setStatus("Connection setup failed.");
+            });
+    });
+
+    socket.on("webrtc-answer", function(payload){
+        var peerId = payload && payload.from;
+        if (!peerId || !payload.sdp || !peers[peerId]) {
+            return;
+        }
+        peers[peerId].setRemoteDescription(new RTCSessionDescription(payload.sdp));
+    });
+
+    socket.on("webrtc-ice", function(payload){
+        var peerId = payload && payload.from;
+        if (!peerId || !payload.candidate || !peers[peerId]) {
+            return;
+        }
+        peers[peerId].addIceCandidate(new RTCIceCandidate(payload.candidate));
+    });
+
+    socket.on("chat-message", function(payload){
+        addChatMessage(payload || {});
+    });
+
+    var startBtn = document.getElementById("start-media");
+    if (startBtn) {
+        startBtn.addEventListener("click", function(){
+            startLocalMedia();
+        });
+    }
+
+    var enableAudioBtn = document.getElementById("enable-audio");
+    if (enableAudioBtn) {
+        enableAudioBtn.addEventListener("click", function(){
+            enableAudienceAudio();
+        });
+    }
+
+    var audioBtn = document.getElementById("toggle-audio");
+    if (audioBtn) {
+        audioBtn.addEventListener("click", function(){
+            if (!isHost) {
+                return;
+            }
+            if (!localStream) {
+                setStatus("Start camera first.");
+                return;
+            }
+            localStream.getAudioTracks().forEach(function(track){
+                track.enabled = !track.enabled;
+                audioBtn.textContent = track.enabled ? "Mute" : "Unmute";
+            });
+        });
+    }
+
+    var videoBtn = document.getElementById("toggle-video");
+    if (videoBtn) {
+        videoBtn.addEventListener("click", function(){
+            if (!isHost) {
+                return;
+            }
+            if (!localStream) {
+                setStatus("Start camera first.");
+                return;
+            }
+            localStream.getVideoTracks().forEach(function(track){
+                track.enabled = !track.enabled;
+                videoBtn.textContent = track.enabled ? "Disable Video" : "Enable Video";
+            });
+        });
+    }
+
+    var chatSend = document.getElementById("chat-send");
+    var chatInput = document.getElementById("chat-input");
+    function sendChat(){
+        if (!chatInput) {
+            return;
+        }
+        var text = chatInput.value.trim();
+        if (!text) {
+            return;
+        }
+        chatInput.value = "";
+        socket.emit("chat-message", { message: text });
+    }
+
+    if (chatSend) {
+        chatSend.addEventListener("click", sendChat);
+    }
+
+    if (chatInput) {
+        chatInput.addEventListener("keydown", function(event){
+            if (event.key === "Enter") {
+                sendChat();
+            }
+        });
+    }
+
+    window.addEventListener("beforeunload", function(){
+        socket.emit("leave-room");
+    });
+}
+</script>
 </body>
 </html>
 """
@@ -1719,11 +3102,194 @@ def get_artist_info():
     
     return result
 
+
+@app.route("/stream", methods=["GET"])
+def stream_home():
+    return render_template_string(STREAM_HTML, room_code=None, room_error=None)
+
+
+@app.route("/stream/create", methods=["POST"])
+def stream_create():
+    try:
+        code = create_stream_room()
+    except Exception as e:
+        return jsonify({"ok": False, "error": str(e)}), 500
+    return jsonify({"ok": True, "code": code, "room_url": f"/stream/{code}"})
+
+
+@app.route("/stream/<code>", methods=["GET"])
+def stream_room(code):
+    normalized = normalize_stream_code(code)
+    room = get_stream_room(normalized)
+    if not room:
+        return render_template_string(
+            STREAM_HTML,
+            room_code=None,
+            room_error="Stream not found or ended.",
+        ), 404
+    return render_template_string(STREAM_HTML, room_code=normalized, room_error=None)
+
 @app.route("/audio/<filename>", methods=["GET"])
 def serve_audio(filename):
     """Serve audio files from downloads directory"""
     filepath = os.path.join(DOWNLOAD_DIR, filename)
     return send_file(filepath, mimetype="audio/mpeg") if os.path.exists(filepath) else ("File not found", 404)
+
+
+def _remove_participant(sid, notify=True):
+    LAST_CHAT_BY_SID.pop(sid, None)
+    code = SOCKET_ROOM_BY_SID.pop(sid, None)
+    if not code:
+        return
+
+    participants = STREAM_PARTICIPANTS.get(code)
+    if participants and sid in participants:
+        name = participants.pop(sid)
+        if notify:
+            emit("peer-left", {"id": sid, "name": name, "count": len(participants)}, room=code)
+
+    if STREAM_HOSTS.get(code) == sid:
+        STREAM_HOSTS.pop(code, None)
+        if participants:
+            for participant_id in list(participants.keys()):
+                SOCKET_ROOM_BY_SID.pop(participant_id, None)
+        if notify:
+            emit("host-ended", {}, room=code)
+        STREAM_PARTICIPANTS.pop(code, None)
+        update_stream_status(code, False)
+        return
+
+    if not participants:
+        STREAM_PARTICIPANTS.pop(code, None)
+        update_stream_status(code, False)
+    else:
+        touch_stream_room(code)
+
+
+@socketio.on("join-room")
+def handle_join_room(data):
+    code = normalize_stream_code((data or {}).get("code", ""))
+    name = ((data or {}).get("name") or "Guest").strip()[:32]
+
+    room = get_stream_room(code)
+    if not room:
+        emit("join-error", {"error": "Room not found or ended."})
+        return
+
+    participants = STREAM_PARTICIPANTS.setdefault(code, {})
+    if len(participants) >= STREAM_ROOM_MAX:
+        emit("join-error", {"error": "Room is full."})
+        return
+
+    host_id = STREAM_HOSTS.get(code)
+    if host_id and host_id not in participants:
+        STREAM_HOSTS.pop(code, None)
+        host_id = None
+    if not host_id:
+        STREAM_HOSTS[code] = request.sid
+        host_id = request.sid
+
+    join_room(code)
+    participants[request.sid] = name
+    SOCKET_ROOM_BY_SID[request.sid] = code
+
+    peers = [
+        {"id": sid, "name": pname}
+        for sid, pname in participants.items()
+        if sid != request.sid
+    ]
+
+    emit(
+        "room-joined",
+        {
+            "code": code,
+            "name": name,
+            "peers": peers,
+            "max_size": STREAM_ROOM_MAX,
+            "count": len(participants),
+            "role": "host" if request.sid == host_id else "viewer",
+        },
+    )
+
+    emit(
+        "peer-joined",
+        {"id": request.sid, "name": name, "count": len(participants)},
+        room=code,
+        include_self=False,
+    )
+    touch_stream_room(code)
+
+
+@socketio.on("leave-room")
+def handle_leave_room():
+    code = SOCKET_ROOM_BY_SID.get(request.sid)
+    if code:
+        leave_room(code)
+    _remove_participant(request.sid)
+
+
+@socketio.on("disconnect")
+def handle_disconnect():
+    _remove_participant(request.sid)
+
+
+@socketio.on("chat-message")
+def handle_chat_message(data):
+    code = SOCKET_ROOM_BY_SID.get(request.sid)
+    if not code:
+        return
+    message = ((data or {}).get("message") or "").strip()
+    if not message:
+        return
+    message = message[:500]
+    now = datetime.utcnow().timestamp()
+    last_time = LAST_CHAT_BY_SID.get(request.sid, 0)
+    if now - last_time < 0.6:
+        return
+    LAST_CHAT_BY_SID[request.sid] = now
+    name = STREAM_PARTICIPANTS.get(code, {}).get(request.sid, "Guest")
+    emit(
+        "chat-message",
+        {
+            "name": name,
+            "message": message,
+            "time": datetime.utcnow().isoformat() + "Z",
+        },
+        room=code,
+    )
+
+
+@socketio.on("webrtc-offer")
+def handle_webrtc_offer(data):
+    target = (data or {}).get("target")
+    sdp = (data or {}).get("sdp")
+    if not target or not sdp:
+        return
+    if SOCKET_ROOM_BY_SID.get(target) != SOCKET_ROOM_BY_SID.get(request.sid):
+        return
+    emit("webrtc-offer", {"from": request.sid, "sdp": sdp}, to=target)
+
+
+@socketio.on("webrtc-answer")
+def handle_webrtc_answer(data):
+    target = (data or {}).get("target")
+    sdp = (data or {}).get("sdp")
+    if not target or not sdp:
+        return
+    if SOCKET_ROOM_BY_SID.get(target) != SOCKET_ROOM_BY_SID.get(request.sid):
+        return
+    emit("webrtc-answer", {"from": request.sid, "sdp": sdp}, to=target)
+
+
+@socketio.on("webrtc-ice")
+def handle_webrtc_ice(data):
+    target = (data or {}).get("target")
+    candidate = (data or {}).get("candidate")
+    if not target or not candidate:
+        return
+    if SOCKET_ROOM_BY_SID.get(target) != SOCKET_ROOM_BY_SID.get(request.sid):
+        return
+    emit("webrtc-ice", {"from": request.sid, "candidate": candidate}, to=target)
 
 @app.route("/", methods=["GET","POST"])
 def home():
@@ -1816,4 +3382,4 @@ def generate():
 
 
 if __name__ == "__main__":
-    app.run(debug=False, use_reloader=False)
+    socketio.run(app, debug=False, use_reloader=False)

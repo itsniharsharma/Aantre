@@ -28,6 +28,8 @@ def download_videos(singer, n):
     """Download videos with optimized search and storage"""
     print(f"\nDownloading top {n} videos for: {singer}")
 
+    before_files = {entry.name for entry in os.scandir(DOWNLOAD_DIR)} if os.path.exists(DOWNLOAD_DIR) else set()
+
     ydl_opts = {
         "format": "bestaudio/best",
         "outtmpl": f"{DOWNLOAD_DIR}/%(title)s.%(ext)s",
@@ -67,13 +69,16 @@ def download_videos(singer, n):
         for entry in selected:
             if url := entry.get("webpage_url"):
                 ydl.download([url])
-        
-        if mongo_handler.connected and CURRENT_SESSION_ID:
-            for entry in os.scandir(DOWNLOAD_DIR):
-                if not entry.is_file():
+
+        if mongo_handler.connected and CURRENT_SESSION_ID and os.path.exists(DOWNLOAD_DIR):
+            after_files = {entry.name for entry in os.scandir(DOWNLOAD_DIR) if entry.is_file()}
+            new_files = after_files - before_files
+            for name in new_files:
+                path = os.path.join(DOWNLOAD_DIR, name)
+                if not os.path.isfile(path):
                     continue
                 mongo_handler.store_song(
-                    entry.path,
+                    path,
                     singer,
                     CURRENT_SESSION_ID,
                     file_type="download",
@@ -145,18 +150,22 @@ def run_mashup(singer, n, duration, output, user_email=None):
                     continue
                 base_name, _ = os.path.splitext(entry.name)
                 downloads_by_base[base_name] = entry.name
-
+        file_ids = []
         for trimmed_path in trimmed:
             trimmed_name = os.path.basename(trimmed_path)
             base_name, _ = os.path.splitext(trimmed_name)
             source_filename = downloads_by_base.get(base_name)
-            mongo_handler.store_song(
+            file_id = mongo_handler.store_song(
                 trimmed_path,
                 singer,
                 CURRENT_SESSION_ID,
                 file_type="trimmed",
                 source_filename=source_filename,
+                append_to_session=False,
             )
+            if file_id:
+                file_ids.append(file_id)
+        mongo_handler.append_session_songs(CURRENT_SESSION_ID, file_ids)
     merge_with_crossfade(trimmed, output)
     
     return CURRENT_SESSION_ID

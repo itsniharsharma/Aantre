@@ -395,7 +395,7 @@ def merge_rotating_premium(
         return sum(chunks)
 
     offsets = [0 for _ in prepared]
-    rotated_parts: List[AudioSegment] = []
+    base_mix: Optional[AudioSegment] = None
 
     while True:
         progressed = False
@@ -406,18 +406,18 @@ def merge_rotating_premium(
             progressed = True
             slice_part = segment[offsets[idx]:offsets[idx] + slice_ms]
             offsets[idx] += slice_ms
-            rotated_parts.append(slice_part)
+
+            if base_mix is None:
+                base_mix = slice_part
+            else:
+                fade = min(effective_fade, len(base_mix) // 2, len(slice_part) // 2)
+                base_mix = base_mix.append(slice_part, crossfade=fade)
 
         if not progressed:
             break
 
-    if not rotated_parts:
+    if base_mix is None:
         raise RuntimeError("Unable to assemble mashup")
-
-    base_mix = rotated_parts[0]
-    for part in rotated_parts[1:]:
-        fade = min(effective_fade, len(base_mix) // 2, len(part) // 2)
-        base_mix = base_mix.append(part, crossfade=fade)
 
     total_ms = len(base_mix)
     ratios = [0.12, 0.16, 0.16, 0.16, 0.1, 0.16]
@@ -533,17 +533,22 @@ def run_multi_mashup(
     )
 
     if mongo_handler.connected and session_id:
+        file_ids = []
         for trimmed_path in trimmed_files:
             trimmed_name = os.path.basename(trimmed_path)
             base_name, _ = os.path.splitext(trimmed_name)
             source_filename, query = trimmed_meta.get(base_name, (None, None))
-            mongo_handler.store_song(
+            file_id = mongo_handler.store_song(
                 trimmed_path,
                 query or "multi",
                 session_id,
                 file_type="trimmed",
                 source_filename=source_filename,
+                append_to_session=False,
             )
+            if file_id:
+                file_ids.append(file_id)
+        mongo_handler.append_session_songs(session_id, file_ids)
 
     merge_rotating_premium(trimmed_files, output, duration)
 

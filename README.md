@@ -1,4 +1,4 @@
-# Aantre 🎧
+# Aantre
 
 **Professional YouTube Audio Mashup Generator** — Create Spotify-grade mashups from YouTube videos in minutes.
 
@@ -20,7 +20,7 @@
 
 ```bash
 # Install Python dependencies
-pip install flask yt-dlp pydub python-dotenv
+pip install flask flask-socketio yt-dlp pydub python-dotenv certifi
 
 # Install ffmpeg (Windows)
 # Option 1: Chocolatey
@@ -36,6 +36,8 @@ Create a `.env` file in the project directory:
 ```dotenv
 MASHMIX_EMAIL="your_email@gmail.com"
 MASHMIX_APP_PASSWORD="your_gmail_app_password"
+MONGO_URI="your_mongodb_connection_string"
+MONGO_TLS_CA_FILE=""
 ```
 
 **How to get Gmail App Password:**
@@ -51,6 +53,12 @@ MASHMIX_APP_PASSWORD="your_gmail_app_password"
 python app.py
 ```
 Opens at `http://127.0.0.1:5000`
+
+### Live Streaming
+- Create a stream to get a unique room code, then share it with viewers.
+- Viewers join using the code to watch video, listen to audio, and chat.
+- Rooms are persisted in MongoDB. If MongoDB is not available, rooms are in-memory only.
+- Streams are optimized for host-only broadcast and viewer receive-only mode.
 
 ### Command Line
 ```bash
@@ -115,7 +123,7 @@ Already fixed! Videos are filtered with `!is_live & !is_upcoming`
 - pydub
 - python-dotenv
 
-Install all: `pip install flask yt-dlp pydub python-dotenv`
+Install all: `pip install flask flask-socketio yt-dlp pydub python-dotenv certifi`
 
 ## License
 

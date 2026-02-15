@@ -1,12 +1,57 @@
 """MongoDB helper for storing and managing downloaded songs"""
 
 import os
+import sys
+import ssl
 from dotenv import load_dotenv
 from pymongo import MongoClient
+try:
+    import certifi
+except Exception:
+    certifi = None
 from gridfs import GridFS
 from datetime import datetime
 
 load_dotenv()
+
+def _find_ca_file() -> str:
+    env_path = os.getenv("MONGO_TLS_CA_FILE")
+    if env_path and os.path.exists(env_path):
+        return env_path
+
+    if certifi:
+        try:
+            cert_path = certifi.where()
+            if cert_path and os.path.exists(cert_path):
+                return cert_path
+        except Exception:
+            pass
+
+    # Fallback to common locations (conda/venv)
+    py_version = f"python{sys.version_info.major}.{sys.version_info.minor}"
+    candidates = [
+        os.path.join(sys.prefix, "Lib", "site-packages", "certifi", "cacert.pem"),
+        os.path.join(sys.prefix, "lib", py_version, "site-packages", "certifi", "cacert.pem"),
+        os.path.join(os.getcwd(), ".conda", "Lib", "site-packages", "certifi", "cacert.pem"),
+    ]
+    for candidate in candidates:
+        if candidate and os.path.exists(candidate):
+            return candidate
+
+    return ""
+
+
+def _build_ssl_context(ca_file: str, allow_invalid: bool):
+    try:
+        context = ssl.create_default_context(cafile=ca_file or None)
+        if hasattr(ssl, "TLSVersion"):
+            context.minimum_version = ssl.TLSVersion.TLSv1_2
+        if allow_invalid:
+            context.check_hostname = False
+            context.verify_mode = ssl.CERT_NONE
+        return context
+    except Exception:
+        return None
 
 class MongoDBHandler:
     """Optimized MongoDB handler with lazy connection and batch operations"""
@@ -29,16 +74,31 @@ class MongoDBHandler:
                 return
                 
             allow_invalid = os.getenv("MONGO_TLS_INSECURE", "0") == "1"
+            ca_file = _find_ca_file()
 
-            self.client = MongoClient(
-                MONGO_URI,
-                connectTimeoutMS=10000,
-                serverSelectionTimeoutMS=10000,
-                maxPoolSize=10,
-                retryWrites=True,
-                tls=True,
-                tlsAllowInvalidCertificates=allow_invalid,
-            )
+            ssl_context = _build_ssl_context(ca_file, allow_invalid)
+
+            client_kwargs = {
+                "connectTimeoutMS": 10000,
+                "serverSelectionTimeoutMS": 10000,
+                "maxPoolSize": 10,
+                "retryWrites": True,
+                "tls": True,
+                "tlsAllowInvalidCertificates": allow_invalid,
+            }
+            if ssl_context:
+                client_kwargs["ssl_context"] = ssl_context
+                if ca_file:
+                    print(f"✅ MongoDB TLS CA loaded: {ca_file}")
+                else:
+                    print("⚠️ MongoDB TLS CA not found; using default SSL context.")
+            elif ca_file:
+                client_kwargs["tlsCAFile"] = ca_file
+                print(f"✅ MongoDB TLS CA loaded: {ca_file}")
+            elif not allow_invalid:
+                print("⚠️ MongoDB TLS CA not found; set MONGO_TLS_CA_FILE if needed.")
+
+            self.client = MongoClient(MONGO_URI, **client_kwargs)
             
             self.client.admin.command('ping')
             
@@ -72,7 +132,7 @@ class MongoDBHandler:
             print(f"⚠️ Failed to start session: {e}")
             return None
     
-    def store_song(self, filepath, artist, session_id=None, file_type=None, source_filename=None):
+    def store_song(self, filepath, artist, session_id=None, file_type=None, source_filename=None, append_to_session=True):
         """Store a song in MongoDB GridFS with chunked upload"""
         if not self.connected or not os.path.exists(filepath):
             return None
@@ -92,7 +152,7 @@ class MongoDBHandler:
                     chunk_size=261120
                 )
             
-            if sid := (session_id or self.current_session_id):
+            if append_to_session and (sid := (session_id or self.current_session_id)):
                 self.songs_collection.update_one(
                     {"_id": sid},
                     {"$push": {"song_ids": file_id}}
@@ -104,6 +164,21 @@ class MongoDBHandler:
         except Exception as e:
             print(f"⚠️ Failed to store song: {e}")
             return None
+
+    def append_session_songs(self, session_id, file_ids):
+        """Append multiple song IDs to a session in one update."""
+        if not self.connected or not session_id or not file_ids:
+            return False
+
+        try:
+            self.songs_collection.update_one(
+                {"_id": session_id},
+                {"$push": {"song_ids": {"$each": list(file_ids)}}}
+            )
+            return True
+        except Exception as e:
+            print(f"⚠️ Failed to append session songs: {e}")
+            return False
     
     def delete_session_songs(self, session_id=None):
         """Delete all songs for a given session with batch operations"""

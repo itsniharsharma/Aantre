@@ -1,5 +1,6 @@
 import os
 import subprocess
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from typing import List
 from pydub import AudioSegment
 from pydub.effects import normalize
@@ -64,22 +65,28 @@ def trim_all_mid(duration_sec: int) -> List[str]:
     ensure_ffmpeg_tools()
     print("\nTrimming audio files from the middle...")
     
-    trimmed_files = []
-    for entry in os.scandir(DOWNLOAD_DIR):
-        if not entry.is_file():
-            continue
+    entries = [entry for entry in os.scandir(DOWNLOAD_DIR) if entry.is_file()]
+    trimmed_files: List[str] = []
 
-        path = entry.path
+    def _trim_one(entry):
         file = entry.name
-        print(f"Trimming: {file}")
-        try:
-            out_name = os.path.splitext(file)[0] + ".mp3"
-            out_path = os.path.join(TRIM_DIR, out_name)
-            trim_mid_chunk(path, out_path, duration_sec)
-            trimmed_files.append(out_path)
-            print(f"✅ Trimmed: {out_name}")
-        except Exception as e:
-            print(f"⚠️ Skipped {file}: {e}")
+        path = entry.path
+        out_name = os.path.splitext(file)[0] + ".mp3"
+        out_path = os.path.join(TRIM_DIR, out_name)
+        trim_mid_chunk(path, out_path, duration_sec)
+        return out_path, out_name
+
+    max_workers = min(4, (os.cpu_count() or 2))
+    with ThreadPoolExecutor(max_workers=max_workers) as executor:
+        futures = {executor.submit(_trim_one, entry): entry for entry in entries}
+        for future in as_completed(futures):
+            entry = futures[future]
+            try:
+                out_path, out_name = future.result()
+                trimmed_files.append(out_path)
+                print(f"✅ Trimmed: {out_name}")
+            except Exception as e:
+                print(f"⚠️ Skipped {entry.name}: {e}")
 
     return trimmed_files
 
