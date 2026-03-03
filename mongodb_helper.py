@@ -70,7 +70,7 @@ class MongoDBHandler:
         try:
             MONGO_URI = os.getenv("MONGO_URI")
             if not MONGO_URI:
-                print("⚠️ MONGO_URI not found in .env")
+                print("Warning: MONGO_URI not found in .env")
                 return
                 
             allow_invalid = os.getenv("MONGO_TLS_INSECURE", "0") == "1"
@@ -89,14 +89,14 @@ class MongoDBHandler:
             if ssl_context:
                 client_kwargs["ssl_context"] = ssl_context
                 if ca_file:
-                    print(f"✅ MongoDB TLS CA loaded: {ca_file}")
+                    print(f"MongoDB TLS CA loaded: {ca_file}")
                 else:
-                    print("⚠️ MongoDB TLS CA not found; using default SSL context.")
+                    print("Warning: MongoDB TLS CA not found; using default SSL context.")
             elif ca_file:
                 client_kwargs["tlsCAFile"] = ca_file
-                print(f"✅ MongoDB TLS CA loaded: {ca_file}")
+                print(f"MongoDB TLS CA loaded: {ca_file}")
             elif not allow_invalid:
-                print("⚠️ MongoDB TLS CA not found; set MONGO_TLS_CA_FILE if needed.")
+                print("Warning: MongoDB TLS CA not found; set MONGO_TLS_CA_FILE if needed.")
 
             self.client = MongoClient(MONGO_URI, **client_kwargs)
             
@@ -106,11 +106,11 @@ class MongoDBHandler:
             self.fs = GridFS(self.db)
             self.songs_collection = self.db['songs_metadata']
             self.connected = True
-            print("✅ MongoDB connected successfully")
+            print("MongoDB connected successfully")
             
         except Exception as e:
             self.connected = False
-            print(f"⚠️ MongoDB connection failed: {e}")
+            print(f"Warning: MongoDB connection failed: {e}")
     
     def start_new_session(self, artist_name, user_email):
         """Start a new mashup generation session"""
@@ -126,10 +126,10 @@ class MongoDBHandler:
                 "song_ids": []
             })
             self.current_session_id = result.inserted_id
-            print(f"✅ Started session: {self.current_session_id}")
+            print(f"Started session: {self.current_session_id}")
             return self.current_session_id
         except Exception as e:
-            print(f"⚠️ Failed to start session: {e}")
+            print(f"Warning: Failed to start session: {e}")
             return None
     
     def store_song(self, filepath, artist, session_id=None, file_type=None, source_filename=None, append_to_session=True):
@@ -158,11 +158,11 @@ class MongoDBHandler:
                     {"$push": {"song_ids": file_id}}
                 )
             
-            print(f"✅ Stored in MongoDB: {filename}")
+            print(f"Stored in MongoDB: {filename}")
             return file_id
             
         except Exception as e:
-            print(f"⚠️ Failed to store song: {e}")
+            print(f"Warning: Failed to store song: {e}")
             return None
 
     def append_session_songs(self, session_id, file_ids):
@@ -177,7 +177,7 @@ class MongoDBHandler:
             )
             return True
         except Exception as e:
-            print(f"⚠️ Failed to append session songs: {e}")
+            print(f"Warning: Failed to append session songs: {e}")
             return False
     
     def delete_session_songs(self, session_id=None):
@@ -192,7 +192,7 @@ class MongoDBHandler:
             
             session = self.songs_collection.find_one({"_id": sid})
             if not session:
-                print(f"⚠️ Session not found: {sid}")
+                print(f"Warning: Session not found: {sid}")
                 return False
             
             deleted_count = 0
@@ -212,11 +212,11 @@ class MongoDBHandler:
                 }}
             )
             
-            print(f"✅ Deleted {deleted_count} songs from MongoDB")
+            print(f"Deleted {deleted_count} songs from MongoDB")
             return True
             
         except Exception as e:
-            print(f"⚠️ Failed to delete session songs: {e}")
+            print(f"Warning: Failed to delete session songs: {e}")
             return False
     
     def get_session_stats(self):
@@ -233,7 +233,7 @@ class MongoDBHandler:
                 "status": session.get("status")
             }
         except Exception as e:
-            print(f"⚠️ Failed to get session stats: {e}")
+            print(f"Warning: Failed to get session stats: {e}")
             return None
 
 mongo_handler = MongoDBHandler()

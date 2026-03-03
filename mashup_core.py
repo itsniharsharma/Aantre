@@ -126,9 +126,9 @@ def main():
         download_videos(singer, n)
         trimmed = trim_all_mid(duration)
         merge_with_crossfade(trimmed, output)
-        print("\n✅ Mashup completed successfully")
+        print("\nMashup completed successfully")
     except Exception as e:
-        print(f"\n❌ Error occurred: {e}")
+        print(f"\nError occurred: {e}")
         
 
 def run_mashup(singer, n, duration, output, user_email=None):

@@ -3039,9 +3039,9 @@ def cleanup_after_email(session_id=None):
             try:
                 if os.path.exists(f):
                     os.remove(f)
-                    print(f"✅ Deleted: {f}")
+                    print(f"Deleted: {f}")
             except Exception as e:
-                print(f"⚠️ Could not delete {f}: {e}")
+                print(f"Warning: Could not delete {f}: {e}")
         
         try:
             if os.path.exists(DOWNLOAD_DIR):
@@ -3050,9 +3050,9 @@ def cleanup_after_email(session_id=None):
                         os.remove(os.path.join(DOWNLOAD_DIR, file))
                     except:
                         pass
-                print(f"✅ Cleared {DOWNLOAD_DIR}")
+                print(f"Cleared {DOWNLOAD_DIR}")
         except Exception as e:
-            print(f"⚠️ Could not clear downloads: {e}")
+            print(f"Warning: Could not clear downloads: {e}")
 
         try:
             if os.path.exists(TRIM_DIR):
@@ -3061,9 +3061,9 @@ def cleanup_after_email(session_id=None):
                         os.remove(os.path.join(TRIM_DIR, file))
                     except:
                         pass
-                print(f"✅ Cleared {TRIM_DIR}")
+                print(f"Cleared {TRIM_DIR}")
         except Exception as e:
-            print(f"⚠️ Could not clear trimmed: {e}")
+            print(f"Warning: Could not clear trimmed: {e}")
     
     threading.Thread(target=delayed_cleanup, daemon=True).start()
 
@@ -3072,7 +3072,7 @@ def send_email(to_email, zip_path):
     load_dotenv(override=True)
 
     if not os.path.exists(zip_path):
-        print(f"⚠ Zip file not found: {zip_path}")
+        print(f"Warning: Zip file not found: {zip_path}")
         return False
 
     try:
@@ -3323,11 +3323,11 @@ def home():
                 email_sent = send_email(email, "result.zip")
 
                 if email_sent:
-                    msg_multi = "✅ Premium multi mashup generated and emailed successfully!"
+                    msg_multi = "Premium multi mashup generated and emailed successfully!"
                     ok_multi = True
                     cleanup_after_email(session_id)
                 else:
-                    msg_multi = "⚠️ Multi mashup created but email failed. File is ready at: result.zip"
+                    msg_multi = "Warning: Multi mashup created but email failed. File is ready at: result.zip"
 
             except Exception as e:
                 msg_multi = str(e)
@@ -3350,11 +3350,11 @@ def home():
                 email_sent = send_email(email, "result.zip")
 
                 if email_sent:
-                    msg_single = "✅ Mashup generated and emailed successfully!"
+                    msg_single = "Mashup generated and emailed successfully!"
                     ok_single = True
                     cleanup_after_email(session_id)
                 else:
-                    msg_single = "⚠️ Mashup created but email failed. File is ready at: result.zip"
+                    msg_single = "Warning: Mashup created but email failed. File is ready at: result.zip"
 
             except Exception as e:
                 msg_single = str(e)

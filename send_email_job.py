@@ -9,7 +9,7 @@ from dotenv import load_dotenv
 
 
 def build_email_body():
-    return """Greetings from Aantre 🎶
+    return """Greetings from Aantre
 
 Thank you for your patience while we prepared your custom audio mashup. Your file has been successfully generated and is attached to this email in ZIP format.
 

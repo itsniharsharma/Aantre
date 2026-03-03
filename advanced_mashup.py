@@ -84,9 +84,9 @@ def trim_all_mid(duration_sec: int) -> List[str]:
             try:
                 out_path, out_name = future.result()
                 trimmed_files.append(out_path)
-                print(f"✅ Trimmed: {out_name}")
+                print(f"Trimmed: {out_name}")
             except Exception as e:
-                print(f"⚠️ Skipped {entry.name}: {e}")
+                print(f"Skipped {entry.name}: {e}")
 
     return trimmed_files
 
@@ -106,4 +106,4 @@ def merge_with_crossfade(files: List[str], output_file: str, crossfade_ms: int =
         final_audio = final_audio.append(segment, crossfade=effective_fade)
 
     final_audio.export(output_file, format="mp3", bitrate="192k")
-    print(f"✅ Final mashup created: {output_file}")
+    print(f"Final mashup created: {output_file}")

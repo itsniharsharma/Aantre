@@ -4,11 +4,11 @@
 
 ## Features
 
-✨ **Smart Search**: Fetches top tracks by artist from YouTube  
-🎯 **Precision Trim**: Extracts clips from the middle of songs for smooth transitions  
-🎚️ **Clean Stitch**: Crossfaded merging with normalization for seamless playback  
-📧 **Auto Email**: Delivers mashups directly to your inbox as ZIP files  
-🎨 **Spotify-Inspired UI**: Professional dark theme with gradient accents
+- **Smart Search**: Fetches top tracks by artist from YouTube  
+- **Precision Trim**: Extracts clips from the middle of songs for smooth transitions  
+- **Clean Stitch**: Crossfaded merging with normalization for seamless playback  
+- **Auto Email**: Delivers mashups directly to your inbox as ZIP files  
+- **Spotify-Inspired UI**: Professional dark theme with gradient accents
 
 ## Installation
 
